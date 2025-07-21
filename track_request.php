@@ -2,7 +2,10 @@
 checkLogin();
 
 $pageTitle = 'پیگیری درخواست - پاسخگو رایانه';
-include '../templates/header.php';
+$breadcrumbs = [
+    ['title' => 'پیگیری درخواست']
+];
+include 'includes/header.php';
 
 $trackingCode = '';
 $request = null;
@@ -336,4 +339,4 @@ document.getElementById('tracking_code').addEventListener('input', function(e) {
 });
 </script>
 
-<?php include '../templates/footer.php'; ?>
+<?php include 'includes/footer.php'; ?>

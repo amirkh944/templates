@@ -20,59 +20,176 @@ if (!isset($_SESSION['user_id'])) {
     header('Location: dashboard.php');
     exit;
 }
+
+$pageTitle = 'ورود به سیستم - پاسخگو رایانه';
+include 'includes/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="fa" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مدیریت درخواست پاسخگو رایانه</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/font-face.css" rel="stylesheet">
-    <style>
-        body { font-family: 'Vazir', sans-serif; }
-    </style>
-</head>
-<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
-    <div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div class="max-w-md w-full space-y-8">
-            <div>
-                <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
-                    مدیریت درخواست پاسخگو رایانه
-                </h2>
-                <p class="mt-2 text-center text-sm text-gray-600">
-                    لطفاً وارد حساب کاربری خود شوید
-                </p>
-            </div>
-            <form class="mt-8 space-y-6" method="POST">
-                <div class="rounded-md shadow-sm -space-y-px">
-                    <div>
-                        <label for="username" class="sr-only">نام کاربری</label>
-                        <input id="username" name="username" type="text" required 
-                               class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm" 
-                               placeholder="نام کاربری">
+
+<div class="hero min-h-screen bg-gradient-to-br from-primary/10 to-secondary/10">
+    <div class="hero-content flex-col lg:flex-row-reverse">
+        
+        <!-- تصویر و معرفی -->
+        <div class="text-center lg:text-right lg:w-1/2">
+            <div class="max-w-md mx-auto lg:mx-0">
+                <div class="mb-8">
+                    <div class="w-24 h-24 mx-auto lg:mx-0 bg-primary rounded-2xl flex items-center justify-center mb-4">
+                        <i class="fas fa-desktop text-4xl text-primary-content"></i>
                     </div>
-                    <div>
-                        <label for="password" class="sr-only">رمز عبور</label>
-                        <input id="password" name="password" type="password" required 
-                               class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm" 
-                               placeholder="رمز عبور">
+                    <h1 class="text-4xl lg:text-5xl font-bold text-base-content mb-4">
+                        سامانه مدیریت درخواست
+                    </h1>
+                    <h2 class="text-2xl lg:text-3xl font-bold text-primary mb-6">
+                        پاسخگو رایانه
+                    </h2>
+                    <p class="text-lg text-base-content/70 leading-relaxed">
+                        سیستم جامع مدیریت درخواست‌های تعمیرات و خدمات کامپیوتر
+                    </p>
+                </div>
+                
+                <!-- ویژگی‌ها -->
+                <div class="grid grid-cols-1 gap-4 text-right">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 bg-success rounded-lg flex items-center justify-center">
+                            <i class="fas fa-check text-success-content text-sm"></i>
+                        </div>
+                        <span class="text-base-content/80">مدیریت درخواست‌ها</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 bg-info rounded-lg flex items-center justify-center">
+                            <i class="fas fa-users text-info-content text-sm"></i>
+                        </div>
+                        <span class="text-base-content/80">مدیریت مشتریان</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 bg-warning rounded-lg flex items-center justify-center">
+                            <i class="fas fa-chart-line text-warning-content text-sm"></i>
+                        </div>
+                        <span class="text-base-content/80">گزارش‌گیری پیشرفته</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 bg-error rounded-lg flex items-center justify-center">
+                            <i class="fas fa-mobile-alt text-error-content text-sm"></i>
+                        </div>
+                        <span class="text-base-content/80">پیگیری آنلاین</span>
                     </div>
                 </div>
-
+            </div>
+        </div>
+        
+        <!-- فرم لاگین -->
+        <div class="card shrink-0 w-full max-w-md shadow-2xl bg-base-100 border border-base-300">
+            <form class="card-body" method="POST">
+                <div class="text-center mb-6">
+                    <h3 class="text-2xl font-bold text-base-content">ورود به سیستم</h3>
+                    <p class="text-base-content/70 mt-2">لطفاً اطلاعات خود را وارد کنید</p>
+                </div>
+                
                 <?php if (isset($error)): ?>
-                    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-                        <?php echo $error; ?>
+                    <div class="alert alert-error mb-4">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <span><?php echo $error; ?></span>
                     </div>
                 <?php endif; ?>
-
-                <div>
-                    <button type="submit" class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-medium">
+                            <i class="fas fa-user ml-2"></i>نام کاربری
+                        </span>
+                    </label>
+                    <input 
+                        type="text" 
+                        name="username" 
+                        placeholder="نام کاربری خود را وارد کنید" 
+                        class="input input-bordered w-full" 
+                        required 
+                        autofocus
+                    />
+                </div>
+                
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-medium">
+                            <i class="fas fa-lock ml-2"></i>رمز عبور
+                        </span>
+                    </label>
+                    <input 
+                        type="password" 
+                        name="password" 
+                        placeholder="رمز عبور خود را وارد کنید" 
+                        class="input input-bordered w-full" 
+                        required 
+                    />
+                    <label class="label">
+                        <a href="#" class="label-text-alt link link-hover text-primary">
+                            رمز عبور را فراموش کرده‌اید؟
+                        </a>
+                    </label>
+                </div>
+                
+                <div class="form-control mt-6">
+                    <button class="btn btn-primary btn-lg w-full">
+                        <i class="fas fa-sign-in-alt ml-2"></i>
                         ورود
                     </button>
+                </div>
+                
+                <div class="divider text-base-content/50">یا</div>
+                
+                <div class="text-center">
+                    <a href="public/customer/track.php" class="btn btn-outline btn-secondary w-full">
+                        <i class="fas fa-search ml-2"></i>
+                        پیگیری درخواست (بدون لاگین)
+                    </a>
                 </div>
             </form>
         </div>
     </div>
-</body>
-</html>
+</div>
+
+<!-- بخش معرفی خدمات -->
+<div class="bg-base-200 py-16">
+    <div class="container mx-auto px-4">
+        <div class="text-center mb-12">
+            <h3 class="text-3xl font-bold text-base-content mb-4">خدمات ما</h3>
+            <p class="text-lg text-base-content/70">ارائه دهنده بهترین خدمات تعمیرات کامپیوتر</p>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <!-- تعمیرات سخت افزار -->
+            <div class="card bg-base-100 shadow-lg border border-base-300 hover:shadow-xl transition-shadow">
+                <div class="card-body text-center">
+                    <div class="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-microchip text-2xl text-primary-content"></i>
+                    </div>
+                    <h4 class="card-title justify-center text-lg mb-3">تعمیرات سخت افزار</h4>
+                    <p class="text-base-content/70">تعمیر انواع قطعات کامپیوتر، لپ تاپ و سرور</p>
+                </div>
+            </div>
+            
+            <!-- نصب نرم افزار -->
+            <div class="card bg-base-100 shadow-lg border border-base-300 hover:shadow-xl transition-shadow">
+                <div class="card-body text-center">
+                    <div class="w-16 h-16 bg-info rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-download text-2xl text-info-content"></i>
+                    </div>
+                    <h4 class="card-title justify-center text-lg mb-3">نصب نرم افزار</h4>
+                    <p class="text-base-content/70">نصب و پیکربندی انواع نرم افزارها و سیستم عامل</p>
+                </div>
+            </div>
+            
+            <!-- پشتیبانی -->
+            <div class="card bg-base-100 shadow-lg border border-base-300 hover:shadow-xl transition-shadow">
+                <div class="card-body text-center">
+                    <div class="w-16 h-16 bg-success rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-headset text-2xl text-success-content"></i>
+                    </div>
+                    <h4 class="card-title justify-center text-lg mb-3">پشتیبانی ۲۴/۷</h4>
+                    <p class="text-base-content/70">پشتیبانی همه روزه و خدمات مشاوره فنی</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<?php include 'includes/footer.php'; ?>
