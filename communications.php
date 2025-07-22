@@ -17,8 +17,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     
     try {
         addContact($customerId, $contactType, $subject, $contactMessage);
-        $message = '<div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-                      تماس با موفقیت ثبت شد.
+        $message = '<div class="alert alert-success mb-6">
+                      <i class="fas fa-check-circle"></i>
+                      <span>تماس با موفقیت ثبت شد.</span>
                     </div>';
         
         // بارگذاری مجدد لیست تماس‌ها
@@ -28,185 +29,231 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $_POST = array();
         
     } catch (Exception $e) {
-        $message = '<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                      خطا در ثبت تماس: ' . $e->getMessage() . '
+        $message = '<div class="alert alert-error mb-6">
+                      <i class="fas fa-exclamation-circle"></i>
+                      <span>خطا در ثبت تماس: ' . $e->getMessage() . '</span>
                     </div>';
     }
 }
 
-// کنترل تم (قالب)
-$theme = $_GET['theme'] ?? 'light';
-$isDark = $theme === 'dark';
-?>
-<!DOCTYPE html>
-<html lang="fa" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مدیریت ارتباطات - مدیریت درخواست پاسخگو رایانه</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/font-face.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        body { font-family: 'Vazir', sans-serif; }
-        <?php if ($isDark): ?>
-        .dark-theme {
-            background: linear-gradient(135deg, #1e3a8a 0%, #3730a3 100%);
-            color: #e5e7eb;
-        }
-        .dark-card {
-            background: rgba(31, 41, 55, 0.9);
-            border: 1px solid #374151;
-        }
-        .dark-input {
-            background: #374151;
-            border: 1px solid #4b5563;
-            color: #e5e7eb;
-        }
-        .dark-input:focus {
-            border-color: #6366f1;
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-        }
-        <?php endif; ?>
-    </style>
-</head>
-<body class="<?php echo $isDark ? 'dark-theme min-h-screen' : 'bg-gray-100'; ?>">
-    <!-- Navigation -->
-    <nav class="<?php echo $isDark ? 'bg-gray-800 shadow-lg' : 'bg-white shadow-lg'; ?>">
-        <div class="max-w-7xl mx-auto px-4">
-            <div class="flex justify-between h-16">
-                <div class="flex items-center">
-                    <a href="dashboard.php?theme=<?php echo $theme; ?>" class="text-xl font-bold <?php echo $isDark ? 'text-white' : 'text-gray-800'; ?>">
-                        مدیریت درخواست پاسخگو رایانه
-                    </a>
-                </div>
-                <div class="flex items-center space-x-4 space-x-reverse">
-                    <a href="dashboard.php?theme=<?php echo $theme; ?>" class="<?php echo $isDark ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'; ?>">
-                        داشبورد
-                    </a>
-                    
-                    <!-- Theme Toggle -->
-                    <div class="flex space-x-2">
-                        <a href="?theme=light" class="px-3 py-1 rounded <?php echo !$isDark ? 'bg-blue-500 text-white' : 'bg-gray-600 text-gray-300'; ?>">
-                            <i class="fas fa-sun"></i>
-                        </a>
-                        <a href="?theme=dark" class="px-3 py-1 rounded <?php echo $isDark ? 'bg-blue-500 text-white' : 'bg-gray-600 text-gray-300'; ?>">
-                            <i class="fas fa-moon"></i>
-                        </a>
-                    </div>
-                    
-                    <a href="logout.php" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">خروج</a>
-                </div>
-            </div>
-        </div>
-    </nav>
+$pageTitle = 'مدیریت ارتباطات - پاسخگو رایانه';
+$breadcrumbs = [
+    ['title' => 'داشبورد', 'url' => 'dashboard.php'],
+    ['title' => 'مدیریت ارتباطات']
+];
 
-    <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <!-- فرم ثبت تماس جدید -->
-        <div class="<?php echo $isDark ? 'dark-card' : 'bg-white'; ?> shadow overflow-hidden sm:rounded-lg mb-6">
-            <div class="px-4 py-5 sm:px-6">
-                <h3 class="text-lg leading-6 font-medium <?php echo $isDark ? 'text-white' : 'text-gray-900'; ?>">
-                    ثبت تماس و ارتباط جدید
-                </h3>
-                <p class="mt-1 max-w-2xl text-sm <?php echo $isDark ? 'text-gray-300' : 'text-gray-500'; ?>">
-                    فرم ثبت تماس‌ها و پیام‌ها با مشتریان
+include 'includes/header.php';
+?>
+<!-- صفحه مدیریت ارتباطات -->
+<div class="space-y-8">
+    
+    <!-- هدر صفحه -->
+    <div class="hero bg-gradient-to-r from-secondary to-accent rounded-3xl text-primary-content">
+        <div class="hero-content text-center py-8">
+            <div class="max-w-lg">
+                <h1 class="text-3xl font-bold mb-4">
+                    <i class="fas fa-comments ml-2"></i>
+                    مدیریت ارتباطات
+                </h1>
+                <p class="text-lg">
+                    ثبت و مدیریت تماس‌ها و ارتباطات با مشتریان
                 </p>
             </div>
+        </div>
+    </div>
+    
+    <?php echo $message; ?>
+    
+    <!-- آمار سریع ارتباطات -->
+    <div class="stats shadow w-full">
+        <div class="stat">
+            <div class="stat-figure text-primary">
+                <i class="fas fa-comments text-3xl"></i>
+            </div>
+            <div class="stat-title">کل ارتباطات</div>
+            <div class="stat-value text-primary"><?php echo en2fa(count($contacts)); ?></div>
+            <div class="stat-desc">تماس‌های ثبت‌شده</div>
+        </div>
+        
+        <div class="stat">
+            <div class="stat-figure text-secondary">
+                <i class="fas fa-phone text-3xl"></i>
+            </div>
+            <div class="stat-title">تماس‌های امروز</div>
+            <div class="stat-value text-secondary">
+                <?php 
+                $todayContacts = array_filter($contacts, function($contact) {
+                    return date('Y-m-d', strtotime($contact['contact_date'])) === date('Y-m-d');
+                });
+                echo en2fa(count($todayContacts));
+                ?>
+            </div>
+            <div class="stat-desc">ارتباطات امروز</div>
+        </div>
+        
+        <div class="stat">
+            <div class="stat-figure text-accent">
+                <i class="fas fa-chart-line text-3xl"></i>
+            </div>
+            <div class="stat-title">مشتریان فعال</div>
+            <div class="stat-value text-accent">
+                <?php 
+                $activeCustomers = array_unique(array_column($contacts, 'customer_id'));
+                echo en2fa(count($activeCustomers));
+                ?>
+            </div>
+            <div class="stat-desc">مشتریان با تماس</div>
+        </div>
+    </div>
+    
+    <!-- فرم ثبت تماس جدید -->
+    <div class="card bg-base-100 shadow-xl border border-base-300">
+        <div class="card-body">
+            <h2 class="card-title text-2xl mb-6">
+                <i class="fas fa-plus-circle text-primary ml-2"></i>
+                ثبت تماس و ارتباط جدید
+            </h2>
             
-            <div class="px-4 py-5 sm:p-6">
-                <?php echo $message; ?>
-                
-                <form method="POST" class="space-y-6">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium <?php echo $isDark ? 'text-gray-200' : 'text-gray-700'; ?> mb-2">مشتری *</label>
-                            <select name="customer_id" required class="w-full <?php echo $isDark ? 'dark-input' : 'border border-gray-300'; ?> rounded-md px-3 py-2">
-                                <option value="">انتخاب مشتری</option>
-                                <?php foreach ($customers as $customer): ?>
-                                <option value="<?php echo $customer['id']; ?>" <?php echo ($_POST['customer_id'] ?? '') == $customer['id'] ? 'selected' : ''; ?>>
-                                    <?php echo $customer['name']; ?> - <?php echo $customer['phone']; ?>
-                                </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium <?php echo $isDark ? 'text-gray-200' : 'text-gray-700'; ?> mb-2">نوع تماس *</label>
-                            <select name="contact_type" required class="w-full <?php echo $isDark ? 'dark-input' : 'border border-gray-300'; ?> rounded-md px-3 py-2">
-                                <option value="">انتخاب نوع تماس</option>
-                                <option value="تماس" <?php echo ($_POST['contact_type'] ?? '') == 'تماس' ? 'selected' : ''; ?>>تماس تلفنی</option>
-                                <option value="ایمیل" <?php echo ($_POST['contact_type'] ?? '') == 'ایمیل' ? 'selected' : ''; ?>>ایمیل</option>
-                                <option value="پیامک" <?php echo ($_POST['contact_type'] ?? '') == 'پیامک' ? 'selected' : ''; ?>>پیامک</option>
-                                <option value="واتساپ" <?php echo ($_POST['contact_type'] ?? '') == 'واتساپ' ? 'selected' : ''; ?>>واتساپ</option>
-                                <option value="حضوری" <?php echo ($_POST['contact_type'] ?? '') == 'حضوری' ? 'selected' : ''; ?>>مراجعه حضوری</option>
-                            </select>
-                        </div>
-                        <div class="md:col-span-2">
-                            <label class="block text-sm font-medium <?php echo $isDark ? 'text-gray-200' : 'text-gray-700'; ?> mb-2">موضوع</label>
+            <form method="POST" class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-semibold">مشتری *</span>
+                        </label>
+                        <select name="customer_id" required class="select select-bordered w-full">
+                            <option value="">انتخاب مشتری</option>
+                            <?php foreach ($customers as $customer): ?>
+                            <option value="<?php echo $customer['id']; ?>" <?php echo ($_POST['customer_id'] ?? '') == $customer['id'] ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($customer['name']); ?> - <?php echo $customer['phone']; ?>
+                            </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-semibold">نوع تماس *</span>
+                        </label>
+                        <select name="contact_type" required class="select select-bordered w-full">
+                            <option value="">انتخاب نوع تماس</option>
+                            <option value="تماس" <?php echo ($_POST['contact_type'] ?? '') == 'تماس' ? 'selected' : ''; ?>>
+                                <i class="fas fa-phone ml-2"></i>تماس تلفنی
+                            </option>
+                            <option value="ایمیل" <?php echo ($_POST['contact_type'] ?? '') == 'ایمیل' ? 'selected' : ''; ?>>
+                                <i class="fas fa-envelope ml-2"></i>ایمیل
+                            </option>
+                            <option value="پیامک" <?php echo ($_POST['contact_type'] ?? '') == 'پیامک' ? 'selected' : ''; ?>>
+                                <i class="fas fa-sms ml-2"></i>پیامک
+                            </option>
+                            <option value="واتساپ" <?php echo ($_POST['contact_type'] ?? '') == 'واتساپ' ? 'selected' : ''; ?>>
+                                <i class="fab fa-whatsapp ml-2"></i>واتساپ
+                            </option>
+                            <option value="حضوری" <?php echo ($_POST['contact_type'] ?? '') == 'حضوری' ? 'selected' : ''; ?>>
+                                <i class="fas fa-user ml-2"></i>مراجعه حضوری
+                            </option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-control md:col-span-2">
+                        <label class="label">
+                            <span class="label-text font-semibold">موضوع</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-tag"></i>
+                            </span>
                             <input type="text" name="subject" 
-                                   class="w-full <?php echo $isDark ? 'dark-input' : 'border border-gray-300'; ?> rounded-md px-3 py-2"
-                                   value="<?php echo $_POST['subject'] ?? ''; ?>"
+                                   class="input input-bordered w-full"
+                                   value="<?php echo htmlspecialchars($_POST['subject'] ?? ''); ?>"
                                    placeholder="موضوع تماس یا ارتباط">
                         </div>
-                        <div class="md:col-span-2">
-                            <label class="block text-sm font-medium <?php echo $isDark ? 'text-gray-200' : 'text-gray-700'; ?> mb-2">پیام و توضیحات *</label>
-                            <textarea name="message" rows="4" required 
-                                      class="w-full <?php echo $isDark ? 'dark-input' : 'border border-gray-300'; ?> rounded-md px-3 py-2"
-                                      placeholder="متن پیام، نتیجه تماس یا توضیحات کامل ارتباط"><?php echo $_POST['message'] ?? ''; ?></textarea>
-                        </div>
                     </div>
+                    
+                    <div class="form-control md:col-span-2">
+                        <label class="label">
+                            <span class="label-text font-semibold">پیام و توضیحات *</span>
+                        </label>
+                        <textarea name="message" rows="4" required 
+                                  class="textarea textarea-bordered"
+                                  placeholder="متن پیام، نتیجه تماس یا توضیحات کامل ارتباط"><?php echo htmlspecialchars($_POST['message'] ?? ''); ?></textarea>
+                    </div>
+                </div>
 
-                    <div class="flex justify-end">
-                        <button type="submit" class="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600 transition duration-200">
-                            <i class="fas fa-phone-alt ml-2"></i>
-                            ثبت تماس
-                        </button>
-                    </div>
-                </form>
-            </div>
+                <div class="flex justify-end">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-phone-alt ml-2"></i>
+                        ثبت تماس
+                    </button>
+                </div>
+            </form>
         </div>
+    </div>
 
-        <!-- لیست تماس‌ها -->
-        <div class="<?php echo $isDark ? 'dark-card' : 'bg-white'; ?> shadow overflow-hidden sm:rounded-lg">
-            <div class="px-4 py-5 sm:px-6">
-                <h3 class="text-lg leading-6 font-medium <?php echo $isDark ? 'text-white' : 'text-gray-900'; ?>">
+    <!-- لیست تماس‌ها -->
+    <div class="card bg-base-100 shadow-xl border border-base-300">
+        <div class="card-body">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="card-title text-2xl">
+                    <i class="fas fa-history text-info ml-2"></i>
                     تاریخچه ارتباطات
-                </h3>
-                <p class="mt-1 max-w-2xl text-sm <?php echo $isDark ? 'text-gray-300' : 'text-gray-500'; ?>">
-                    لیست تمام تماس‌ها و ارتباطات ثبت شده
-                </p>
+                </h2>
+                <div class="badge badge-info">
+                    <?php echo en2fa(count($contacts)); ?> تماس
+                </div>
             </div>
             
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y <?php echo $isDark ? 'divide-gray-600' : 'divide-gray-200'; ?>">
-                    <thead class="<?php echo $isDark ? 'bg-gray-700' : 'bg-gray-50'; ?>">
+                <table class="table table-zebra">
+                    <thead>
                         <tr>
-                            <th class="px-6 py-3 text-right text-xs font-medium <?php echo $isDark ? 'text-gray-300' : 'text-gray-500'; ?> uppercase tracking-wider">تاریخ</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium <?php echo $isDark ? 'text-gray-300' : 'text-gray-500'; ?> uppercase tracking-wider">مشتری</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium <?php echo $isDark ? 'text-gray-300' : 'text-gray-500'; ?> uppercase tracking-wider">نوع تماس</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium <?php echo $isDark ? 'text-gray-300' : 'text-gray-500'; ?> uppercase tracking-wider">موضوع</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium <?php echo $isDark ? 'text-gray-300' : 'text-gray-500'; ?> uppercase tracking-wider">پیام</th>
+                            <th>تاریخ</th>
+                            <th>مشتری</th>
+                            <th>نوع تماس</th>
+                            <th>موضوع</th>
+                            <th>پیام</th>
+                            <th>عملیات</th>
                         </tr>
                     </thead>
-                    <tbody class="<?php echo $isDark ? 'bg-gray-800 divide-gray-600' : 'bg-white divide-gray-200'; ?> divide-y">
+                    <tbody>
                         <?php foreach ($contacts as $contact): ?>
-                        <tr>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm <?php echo $isDark ? 'text-gray-200' : 'text-gray-900'; ?>">
-                                <?php echo en2fa(jalali_date('Y/m/d H:i', strtotime($contact['contact_date']))); ?>
+                        <tr class="hover">
+                            <td>
+                                <div class="flex items-center">
+                                    <i class="fas fa-calendar text-base-content/50 ml-2"></i>
+                                    <div>
+                                        <div class="font-medium">
+                                            <?php echo en2fa(jalali_date('Y/m/d', strtotime($contact['contact_date']))); ?>
+                                        </div>
+                                        <div class="text-sm text-base-content/60">
+                                            <?php echo en2fa(jalali_date('H:i', strtotime($contact['contact_date']))); ?>
+                                        </div>
+                                    </div>
+                                </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm <?php echo $isDark ? 'text-gray-200' : 'text-gray-900'; ?>">
-                                <div class="font-medium"><?php echo $contact['customer_name']; ?></div>
-                                <div class="text-gray-500 font-mono text-sm"><?php echo $contact['customer_phone']; ?></div>
+                            <td>
+                                <div class="flex items-center">
+                                    <div class="avatar placeholder ml-3">
+                                        <div class="bg-neutral-focus text-neutral-content rounded-full w-8">
+                                            <span class="text-xs">
+                                                <?php echo mb_substr($contact['customer_name'], 0, 1); ?>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="font-medium"><?php echo htmlspecialchars($contact['customer_name']); ?></div>
+                                        <div class="text-sm text-base-content/60" dir="ltr"><?php echo $contact['customer_phone']; ?></div>
+                                    </div>
+                                </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
-                                    <?php 
+                            <td>
+                                <div class="badge <?php 
                                     switch($contact['contact_type']) {
-                                        case 'تماس': echo 'bg-blue-100 text-blue-800'; break;
-                                        case 'ایمیل': echo 'bg-green-100 text-green-800'; break;
-                                        case 'پیامک': echo 'bg-purple-100 text-purple-800'; break;
-                                        case 'واتساپ': echo 'bg-green-100 text-green-800'; break;
-                                        case 'حضوری': echo 'bg-orange-100 text-orange-800'; break;
-                                        default: echo 'bg-gray-100 text-gray-800';
+                                        case 'تماس': echo 'badge-info'; break;
+                                        case 'ایمیل': echo 'badge-success'; break;
+                                        case 'پیامک': echo 'badge-secondary'; break;
+                                        case 'واتساپ': echo 'badge-success'; break;
+                                        case 'حضوری': echo 'badge-warning'; break;
+                                        default: echo 'badge-neutral';
                                     }
                                     ?>">
                                     <i class="<?php 
@@ -220,21 +267,30 @@ $isDark = $theme === 'dark';
                                         }
                                     ?> ml-1"></i>
                                     <?php echo $contact['contact_type']; ?>
-                                </span>
+                                </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm <?php echo $isDark ? 'text-gray-200' : 'text-gray-900'; ?>">
-                                <?php echo $contact['subject'] ?: 'بدون موضوع'; ?>
+                            <td class="font-medium">
+                                <?php echo $contact['subject'] ? htmlspecialchars($contact['subject']) : '<span class="text-base-content/40">بدون موضوع</span>'; ?>
                             </td>
-                            <td class="px-6 py-4 text-sm <?php echo $isDark ? 'text-gray-200' : 'text-gray-900'; ?>">
+                            <td>
                                 <div class="max-w-xs">
-                                    <?php echo nl2br(substr($contact['message'], 0, 100)); ?>
-                                    <?php if (strlen($contact['message']) > 100): ?>
-                                        <span class="text-gray-500">...</span>
+                                    <div class="tooltip" data-tip="کلیک برای مشاهده کامل">
                                         <button onclick="showFullMessage('<?php echo addslashes($contact['message']); ?>')" 
-                                                class="text-blue-500 hover:text-blue-700 text-xs">
-                                            ادامه
+                                                class="text-right">
+                                            <?php echo nl2br(htmlspecialchars(substr($contact['message'], 0, 80))); ?>
+                                            <?php if (strlen($contact['message']) > 80): ?>
+                                                <span class="text-base-content/50">...</span>
+                                            <?php endif; ?>
                                         </button>
-                                    <?php endif; ?>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="flex gap-2">
+                                    <button onclick="showFullMessage('<?php echo addslashes($contact['message']); ?>')" 
+                                            class="btn btn-ghost btn-sm" title="مشاهده کامل">
+                                        <i class="fas fa-eye text-info"></i>
+                                    </button>
                                 </div>
                             </td>
                         </tr>
@@ -243,46 +299,42 @@ $isDark = $theme === 'dark';
                 </table>
                 
                 <?php if (empty($contacts)): ?>
-                <div class="text-center py-8">
-                    <i class="fas fa-comments text-4xl <?php echo $isDark ? 'text-gray-400' : 'text-gray-300'; ?> mb-4"></i>
-                    <p class="<?php echo $isDark ? 'text-gray-400' : 'text-gray-500'; ?>">هنوز هیچ تماس یا ارتباطی ثبت نشده است</p>
+                <div class="text-center py-12">
+                    <i class="fas fa-comments text-6xl text-base-content/20 mb-4"></i>
+                    <h3 class="text-xl font-semibold text-base-content/60 mb-2">هیچ تماسی ثبت نشده</h3>
+                    <p class="text-base-content/40 mb-6">برای شروع، اولین تماس خود را ثبت کنید</p>
                 </div>
                 <?php endif; ?>
             </div>
         </div>
     </div>
+    
+</div>
 
-    <!-- Modal for full message -->
-    <div id="messageModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-        <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-1/2 shadow-lg rounded-md <?php echo $isDark ? 'bg-gray-800 border-gray-600' : 'bg-white'; ?>">
-            <div class="mt-3">
-                <h3 class="text-lg font-medium <?php echo $isDark ? 'text-white' : 'text-gray-900'; ?> mb-4">متن کامل پیام</h3>
-                <div id="fullMessage" class="<?php echo $isDark ? 'text-gray-200' : 'text-gray-700'; ?> whitespace-pre-wrap"></div>
-                <div class="flex justify-end mt-4">
-                    <button onclick="closeModal()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
-                        بستن
-                    </button>
-                </div>
-            </div>
+<!-- Modal برای نمایش پیام کامل -->
+<dialog id="messageModal" class="modal">
+    <div class="modal-box">
+        <h3 class="font-bold text-lg mb-4">
+            <i class="fas fa-comment text-primary ml-2"></i>
+            متن کامل پیام
+        </h3>
+        <div id="fullMessage" class="whitespace-pre-wrap text-base-content py-4"></div>
+        <div class="modal-action">
+            <form method="dialog">
+                <button class="btn btn-primary">بستن</button>
+            </form>
         </div>
     </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
 
-    <script>
-        function showFullMessage(message) {
-            document.getElementById('fullMessage').textContent = message;
-            document.getElementById('messageModal').classList.remove('hidden');
-        }
-        
-        function closeModal() {
-            document.getElementById('messageModal').classList.add('hidden');
-        }
-        
-        // Close modal when clicking outside
-        document.getElementById('messageModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeModal();
-            }
-        });
-    </script>
-</body>
-</html>
+<script>
+    function showFullMessage(message) {
+        document.getElementById('fullMessage').textContent = message;
+        document.getElementById('messageModal').showModal();
+    }
+</script>
+
+<?php include 'includes/footer.php'; ?>
