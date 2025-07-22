@@ -14,42 +14,13 @@ $breadcrumbs = [
 $stats = getStats();
 
 // دریافت درخواست‌های اخیر
-$stmt = $pdo->query("
-    SELECT r.*, c.name as customer_name 
-    FROM requests r 
-    JOIN customers c ON r.customer_id = c.id 
-    ORDER BY r.created_at DESC 
-    LIMIT 5
-");
-$recentRequests = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$allRequests = getAllRequests();
+$recentRequests = array_slice($allRequests, 0, 5);
 
-// دریافت آمار هفتگی
-$stmt = $pdo->query("
-    SELECT DATE(created_at) as date, COUNT(*) as count 
-    FROM requests 
-    WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) 
-    GROUP BY DATE(created_at) 
-    ORDER BY date ASC
-");
-$weeklyStats = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// دریافت آمار وضعیت
-$stmt = $pdo->query("
-    SELECT status, COUNT(*) as count 
-    FROM requests 
-    GROUP BY status
-");
-$statusStats = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// دریافت آمار مالی ماهانه
-$stmt = $pdo->query("
-    SELECT MONTH(created_at) as month, SUM(amount) as total
-    FROM payments 
-    WHERE payment_type = 'واریز' AND YEAR(created_at) = YEAR(NOW())
-    GROUP BY MONTH(created_at)
-    ORDER BY month ASC
-");
-$monthlyIncome = $stmt->fetchAll(PDO::FETCH_ASSOC);
+// دریافت آمار برای چارت‌ها
+$weeklyStats = getWeeklyStats();
+$statusStats = getStatusStats();
+$monthlyStats = getMonthlyStats();
 
 include 'includes/header.php';
 ?>
