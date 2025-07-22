@@ -21,125 +21,206 @@ if (!$customer) {
 $requests = getCustomerRequests($customerId);
 $payments = getCustomerPayments($customerId);
 $balance = getCustomerBalance($customerId);
+
+$pageTitle = 'مشاهده مشتری - پاسخگو رایانه';
+$breadcrumbs = [
+    ['title' => 'داشبورد', 'url' => 'dashboard.php'],
+    ['title' => 'مشتریان', 'url' => 'customers.php'],
+    ['title' => 'مشاهده مشتری']
+];
+
+include 'includes/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="fa" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مشاهده مشتری - مدیریت درخواست پاسخگو رایانه</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/font-face.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        body { font-family: 'Vazir', sans-serif; }
-    </style>
-</head>
-<body class="bg-gray-100">
-    <!-- Navigation -->
-    <nav class="bg-white shadow-lg">
-        <div class="max-w-7xl mx-auto px-4">
-            <div class="flex justify-between h-16">
-                <div class="flex items-center">
-                    <a href="dashboard.php" class="text-xl font-bold text-gray-800">مدیریت درخواست پاسخگو رایانه</a>
+<!-- صفحه مشاهده مشتری -->
+<div class="space-y-8">
+    
+    <!-- هدر صفحه -->
+    <div class="hero bg-gradient-to-r from-info to-primary rounded-3xl text-primary-content">
+        <div class="hero-content text-center py-8">
+            <div class="max-w-lg">
+                <h1 class="text-3xl font-bold mb-4">
+                    <i class="fas fa-user-circle ml-2"></i>
+                    مشاهده مشتری
+                </h1>
+                <p class="text-lg">
+                    <?php echo htmlspecialchars($customer['name']); ?>
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- اطلاعات مشتری -->
+    <div class="card bg-base-100 shadow-xl border border-base-300">
+        <div class="card-body">
+            <h2 class="card-title text-2xl mb-6">
+                <i class="fas fa-info-circle text-info ml-2"></i>
+                اطلاعات مشتری
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-4">
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-semibold">شناسه مشتری</span>
+                        </label>
+                        <div class="input input-bordered bg-base-200 flex items-center">
+                            <i class="fas fa-hashtag text-base-content/50 ml-2"></i>
+                            <span><?php echo en2fa($customer['id']); ?></span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-semibold">نام و نام خانوادگی</span>
+                        </label>
+                        <div class="input input-bordered bg-base-200 flex items-center">
+                            <i class="fas fa-user text-base-content/50 ml-2"></i>
+                            <span><?php echo htmlspecialchars($customer['name']); ?></span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-semibold">تلفن همراه</span>
+                        </label>
+                        <div class="input input-bordered bg-base-200 flex items-center">
+                            <i class="fas fa-phone text-base-content/50 ml-2"></i>
+                            <span><?php echo $customer['phone']; ?></span>
+                        </div>
+                    </div>
                 </div>
-                <div class="flex items-center space-x-4 space-x-reverse">
-                    <a href="dashboard.php" class="text-gray-700 hover:text-gray-900">داشبورد</a>
-                    <a href="customers.php" class="text-gray-700 hover:text-gray-900">مشتریان</a>
-                    <a href="logout.php" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">خروج</a>
+                
+                <div class="space-y-4">
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-semibold">آدرس ایمیل</span>
+                        </label>
+                        <div class="input input-bordered bg-base-200 flex items-center">
+                            <i class="fas fa-envelope text-base-content/50 ml-2"></i>
+                            <span><?php echo $customer['email'] ?: 'ندارد'; ?></span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-semibold">تاریخ ثبت</span>
+                        </label>
+                        <div class="input input-bordered bg-base-200 flex items-center">
+                            <i class="fas fa-calendar text-base-content/50 ml-2"></i>
+                            <span><?php echo en2fa(jalali_date('Y/m/d', strtotime($customer['created_at']))); ?></span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-semibold">موجودی مالی</span>
+                        </label>
+                        <div class="input input-bordered bg-base-200 flex items-center">
+                            <i class="fas fa-wallet text-base-content/50 ml-2"></i>
+                            <span class="font-bold <?php echo $balance >= 0 ? 'text-success' : 'text-error'; ?>">
+                                <?php echo en2fa(formatNumber($balance)); ?> تومان
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- آمار سریع -->
+            <div class="stats shadow mt-6">
+                <div class="stat">
+                    <div class="stat-figure text-primary">
+                        <i class="fas fa-clipboard-list text-2xl"></i>
+                    </div>
+                    <div class="stat-title">کل درخواست‌ها</div>
+                    <div class="stat-value text-primary"><?php echo en2fa(count($requests)); ?></div>
+                </div>
+                
+                <div class="stat">
+                    <div class="stat-figure text-secondary">
+                        <i class="fas fa-credit-card text-2xl"></i>
+                    </div>
+                    <div class="stat-title">کل پرداخت‌ها</div>
+                    <div class="stat-value text-secondary"><?php echo en2fa(count($payments)); ?></div>
                 </div>
             </div>
         </div>
-    </nav>
+    </div>
 
-    <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <!-- اطلاعات مشتری -->
-        <div class="bg-white shadow overflow-hidden sm:rounded-lg mb-6">
-            <div class="px-4 py-5 sm:px-6">
-                <h3 class="text-lg leading-6 font-medium text-gray-900">اطلاعات مشتری</h3>
-                <p class="mt-1 max-w-2xl text-sm text-gray-500">جزئیات کامل مشتری</p>
-            </div>
-            <div class="border-t border-gray-200 px-4 py-5 sm:p-0">
-                <dl class="sm:divide-y sm:divide-gray-200">
-                    <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                        <dt class="text-sm font-medium text-gray-500">شناسه</dt>
-                        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2"><?php echo en2fa($customer['id']); ?></dd>
-                    </div>
-                    <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                        <dt class="text-sm font-medium text-gray-500">نام و نام خانوادگی</dt>
-                        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2"><?php echo $customer['name']; ?></dd>
-                    </div>
-                    <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                        <dt class="text-sm font-medium text-gray-500">تلفن همراه</dt>
-                        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2"><?php echo $customer['phone']; ?></dd>
-                    </div>
-                    <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                        <dt class="text-sm font-medium text-gray-500">آدرس ایمیل</dt>
-                        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2"><?php echo $customer['email'] ?: 'ندارد'; ?></dd>
-                    </div>
-                    <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                        <dt class="text-sm font-medium text-gray-500">تاریخ ثبت</dt>
-                        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2"><?php echo en2fa(jalali_date('Y/m/d', strtotime($customer['created_at']))); ?></dd>
-                    </div>
-                    <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                        <dt class="text-sm font-medium text-gray-500">موجودی مالی</dt>
-                        <dd class="mt-1 text-sm font-bold sm:mt-0 sm:col-span-2 <?php echo $balance >= 0 ? 'text-green-600' : 'text-red-600'; ?>">
-                            <?php echo en2fa(formatNumber($balance)); ?> تومان
-                        </dd>
-                    </div>
-                </dl>
-            </div>
-        </div>
-
-        <!-- درخواست‌های مشتری -->
-        <div class="bg-white shadow overflow-hidden sm:rounded-lg mb-6">
-            <div class="px-4 py-5 sm:px-6">
-                <h3 class="text-lg leading-6 font-medium text-gray-900">درخواست‌های مشتری</h3>
-                <p class="mt-1 max-w-2xl text-sm text-gray-500">لیست تمام درخواست‌های این مشتری</p>
+    <!-- درخواست‌های مشتری -->
+    <div class="card bg-base-100 shadow-xl border border-base-300">
+        <div class="card-body">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="card-title text-2xl">
+                    <i class="fas fa-clipboard-list text-warning ml-2"></i>
+                    درخواست‌های مشتری
+                </h2>
+                <div class="badge badge-info">
+                    <?php echo en2fa(count($requests)); ?> درخواست
+                </div>
             </div>
             
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
+                <table class="table table-zebra">
+                    <thead>
                         <tr>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">کد رهگیری</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">عنوان</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">تاریخ ثبت</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">هزینه</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">وضعیت</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">عملیات</th>
+                            <th>کد رهگیری</th>
+                            <th>عنوان</th>
+                            <th>تاریخ ثبت</th>
+                            <th>هزینه</th>
+                            <th>وضعیت</th>
+                            <th>عملیات</th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
+                    <tbody>
                         <?php foreach ($requests as $request): ?>
-                        <tr>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                <?php echo en2fa($request['tracking_code']); ?>
+                        <tr class="hover">
+                            <td>
+                                <code class="bg-base-200 px-2 py-1 rounded text-sm font-mono">
+                                    <?php echo en2fa($request['tracking_code']); ?>
+                                </code>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                <?php echo $request['title']; ?>
+                            <td class="font-medium">
+                                <?php echo htmlspecialchars($request['title']); ?>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                <?php echo en2fa($request['registration_date']); ?>
+                            <td>
+                                <div class="flex items-center">
+                                    <i class="fas fa-calendar text-base-content/50 ml-1"></i>
+                                    <?php echo en2fa($request['registration_date']); ?>
+                                </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                <?php echo en2fa(formatNumber($request['cost'])); ?> تومان
+                            <td>
+                                <div class="badge badge-neutral">
+                                    <?php echo en2fa(formatNumber($request['cost'])); ?> ت
+                                </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
-                                    <?php echo $request['status'] == 'تکمیل شده' ? 'bg-green-100 text-green-800' : 
-                                        ($request['status'] == 'لغو شده' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'); ?>">
+                            <td>
+                                <div class="badge <?php 
+                                    switch($request['status']) {
+                                        case 'تکمیل شده':
+                                            echo 'badge-success';
+                                            break;
+                                        case 'لغو شده':
+                                            echo 'badge-error';
+                                            break;
+                                        default:
+                                            echo 'badge-warning';
+                                    }
+                                    ?>">
                                     <?php echo $request['status']; ?>
-                                </span>
+                                </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <div class="flex space-x-2 space-x-reverse">
+                            <td>
+                                <div class="flex gap-2">
+                                    <a href="view_request.php?id=<?php echo $request['id']; ?>" 
+                                       class="btn btn-ghost btn-sm" title="مشاهده">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
                                     <a href="edit_request.php?id=<?php echo $request['id']; ?>" 
-                                       class="text-green-600 hover:text-green-900">
+                                       class="btn btn-ghost btn-sm" title="ویرایش">
                                         <i class="fas fa-edit"></i>
                                     </a>
                                     <a href="print_receipt.php?id=<?php echo $request['id']; ?>" 
-                                       class="text-purple-600 hover:text-purple-900">
+                                       class="btn btn-ghost btn-sm" title="چاپ">
                                         <i class="fas fa-print"></i>
                                     </a>
                                 </div>
@@ -150,51 +231,61 @@ $balance = getCustomerBalance($customerId);
                 </table>
             </div>
         </div>
+    </div>
 
-        <!-- تاریخچه پرداخت‌ها -->
-        <div class="bg-white shadow overflow-hidden sm:rounded-lg mb-6">
-            <div class="px-4 py-5 sm:px-6">
-                <h3 class="text-lg leading-6 font-medium text-gray-900">تاریخچه پرداخت‌ها</h3>
-                <p class="mt-1 max-w-2xl text-sm text-gray-500">لیست تمام پرداخت‌های این مشتری</p>
+    <!-- تاریخچه پرداخت‌ها -->
+    <div class="card bg-base-100 shadow-xl border border-base-300">
+        <div class="card-body">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="card-title text-2xl">
+                    <i class="fas fa-history text-success ml-2"></i>
+                    تاریخچه پرداخت‌ها
+                </h2>
+                <div class="badge badge-success">
+                    <?php echo en2fa(count($payments)); ?> پرداخت
+                </div>
             </div>
             
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
+                <table class="table table-zebra">
+                    <thead>
                         <tr>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">تاریخ</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">نوع</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">مبلغ</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">توضیحات</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">رسید</th>
+                            <th>تاریخ</th>
+                            <th>نوع</th>
+                            <th>مبلغ</th>
+                            <th>توضیحات</th>
+                            <th>رسید</th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
+                    <tbody>
                         <?php foreach ($payments as $payment): ?>
-                        <tr>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                <?php echo en2fa(jalali_date('Y/m/d', strtotime($payment['created_at']))); ?>
+                        <tr class="hover">
+                            <td>
+                                <div class="flex items-center">
+                                    <i class="fas fa-calendar text-base-content/50 ml-1"></i>
+                                    <?php echo en2fa(jalali_date('Y/m/d', strtotime($payment['created_at']))); ?>
+                                </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
-                                    <?php echo $payment['payment_type'] == 'واریز' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'; ?>">
+                            <td>
+                                <div class="badge <?php echo $payment['payment_type'] == 'واریز' ? 'badge-success' : 'badge-error'; ?>">
+                                    <i class="fas <?php echo $payment['payment_type'] == 'واریز' ? 'fa-arrow-down' : 'fa-arrow-up'; ?> ml-1"></i>
                                     <?php echo $payment['payment_type']; ?>
-                                </span>
+                                </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                <?php echo en2fa(formatNumber($payment['amount'])); ?> تومان
+                            <td>
+                                <div class="badge badge-neutral">
+                                    <?php echo en2fa(formatNumber($payment['amount'])); ?> ت
+                                </div>
                             </td>
-                            <td class="px-6 py-4 text-sm text-gray-900">
-                                <?php echo $payment['description']; ?>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <td><?php echo htmlspecialchars($payment['description']); ?></td>
+                            <td>
                                 <?php if ($payment['receipt_image']): ?>
                                     <a href="uploads/receipts/<?php echo $payment['receipt_image']; ?>" target="_blank" 
-                                       class="text-blue-600 hover:text-blue-900">
-                                        <i class="fas fa-image"></i>
+                                       class="btn btn-ghost btn-sm" title="مشاهده رسید">
+                                        <i class="fas fa-image text-info"></i>
                                     </a>
                                 <?php else: ?>
-                                    <span class="text-gray-400">ندارد</span>
+                                    <span class="text-base-content/50">ندارد</span>
                                 <?php endif; ?>
                             </td>
                         </tr>
@@ -203,12 +294,37 @@ $balance = getCustomerBalance($customerId);
                 </table>
             </div>
         </div>
-
-        <!-- دکمه‌های عملیات -->
-        <div class="flex justify-center space-x-4 space-x-reverse">
-            <a href="customers.php" class="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400">بازگشت</a>
-            <a href="print_customer.php?id=<?php echo $customer['id']; ?>" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">چاپ اطلاعات</a>
+    </div>
+    
+    <!-- دکمه‌های عملیات -->
+    <div class="card bg-base-100 shadow-xl border border-base-300">
+        <div class="card-body">
+            <h2 class="card-title text-xl mb-4">
+                <i class="fas fa-tools text-accent ml-2"></i>
+                عملیات
+            </h2>
+            
+            <div class="flex flex-wrap gap-4">
+                <a href="customers.php" class="btn btn-neutral">
+                    <i class="fas fa-arrow-right ml-2"></i>
+                    بازگشت به لیست
+                </a>
+                <a href="new_request.php?customer_id=<?php echo $customer['id']; ?>" class="btn btn-primary">
+                    <i class="fas fa-plus ml-2"></i>
+                    درخواست جدید
+                </a>
+                <a href="add_payment.php?customer_id=<?php echo $customer['id']; ?>" class="btn btn-success">
+                    <i class="fas fa-credit-card ml-2"></i>
+                    ثبت پرداخت
+                </a>
+                <a href="print_customer.php?id=<?php echo $customer['id']; ?>" class="btn btn-info">
+                    <i class="fas fa-print ml-2"></i>
+                    چاپ اطلاعات
+                </a>
+            </div>
         </div>
     </div>
-</body>
-</html>
+    
+</div>
+
+<?php include 'includes/footer.php'; ?>

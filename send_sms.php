@@ -82,10 +82,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 }
 
-// کنترل تم
-$theme = $_GET['theme'] ?? 'light';
-$isDark = $theme === 'dark';
-
 // متن‌های پیش‌فرض
 $defaultMessages = [
     'new_request' => "درخواست شما با کد رهگیری {$request['tracking_code']} ثبت شد. عنوان: {$request['title']} - پاسخگو رایانه",
@@ -93,52 +89,16 @@ $defaultMessages = [
     'reminder' => "یادآوری: درخواست شما با کد {$request['tracking_code']} در دست بررسی است. پاسخگو رایانه",
     'completion' => "درخواست شما با کد {$request['tracking_code']} تکمیل شد. لطفاً جهت تحویل مراجعه فرمایید. پاسخگو رایانه"
 ];
+
+$pageTitle = 'ارسال پیامک - پاسخگو رایانه';
+$breadcrumbs = [
+    ['title' => 'داشبورد', 'url' => 'dashboard.php'],
+    ['title' => 'درخواست‌ها', 'url' => 'requests.php'],
+    ['title' => 'ارسال پیامک']
+];
+
+include 'includes/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="fa" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ارسال پیامک - سیستم مدیریت درخواست پاسخگو رایانه</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/font-face.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        body { font-family: 'Vazir', sans-serif; }
-        
-        /* تم تیره */
-        .dark-bg { background: linear-gradient(135deg, #1e293b 0%, #334155 100%); }
-        .dark-card { background: rgba(30, 41, 59, 0.95); border: 1px solid #475569; }
-        .dark-text { color: #e2e8f0; }
-        .dark-text-secondary { color: #94a3b8; }
-        .dark-input { background: #374151; border: 1px solid #475569; color: #e2e8f0; }
-        .dark-input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1); }
-        
-        /* تم روشن */
-        .light-bg { background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); }
-        .light-card { background: white; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-        .light-text { color: #1e293b; }
-        .light-text-secondary { color: #64748b; }
-        
-        /* قالب‌های پیامک */
-        .message-template {
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        .message-template:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
-        }
-        
-        /* انیمیشن‌ها */
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-slide-in { animation: slideIn 0.5s ease-out; }
-    </style>
-</head>
-<body class="min-h-screen <?php echo $isDark ? 'dark-bg' : 'light-bg'; ?>">
     
     <!-- نوار ناوبری -->
     <nav class="<?php echo $isDark ? 'bg-gray-800' : 'bg-white'; ?> shadow-lg sticky top-0 z-50">

@@ -16,8 +16,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     
     try {
         createUser($username, $password, $email, $phone);
-        $message = '<div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-                      کاربر با موفقیت ایجاد شد.
+        $message = '<div class="alert alert-success mb-6">
+                      <i class="fas fa-check-circle"></i>
+                      <span>کاربر با موفقیت ایجاد شد.</span>
                     </div>';
         
         // بارگذاری مجدد لیست کاربران
@@ -27,132 +28,189 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $_POST = array();
         
     } catch (Exception $e) {
-        $message = '<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                      خطا در ایجاد کاربر: ' . $e->getMessage() . '
+        $message = '<div class="alert alert-error mb-6">
+                      <i class="fas fa-exclamation-circle"></i>
+                      <span>خطا در ایجاد کاربر: ' . $e->getMessage() . '</span>
                     </div>';
     }
 }
+
+$pageTitle = 'مدیریت کاربران - پاسخگو رایانه';
+$breadcrumbs = [
+    ['title' => 'داشبورد', 'url' => 'dashboard.php'],
+    ['title' => 'مدیریت کاربران']
+];
+
+include 'includes/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="fa" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مدیریت کاربران - مدیریت درخواست پاسخگو رایانه</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/font-face.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        body { font-family: 'Vazir', sans-serif; }
-    </style>
-</head>
-<body class="bg-gray-100">
-    <!-- Navigation -->
-    <nav class="bg-white shadow-lg">
-        <div class="max-w-7xl mx-auto px-4">
-            <div class="flex justify-between h-16">
-                <div class="flex items-center">
-                    <a href="dashboard.php" class="text-xl font-bold text-gray-800">مدیریت درخواست پاسخگو رایانه</a>
-                </div>
-                <div class="flex items-center space-x-4 space-x-reverse">
-                    <a href="dashboard.php" class="text-gray-700 hover:text-gray-900">داشبورد</a>
-                    <a href="logout.php" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">خروج</a>
-                </div>
+<!-- صفحه مدیریت کاربران -->
+<div class="space-y-8">
+    
+    <!-- هدر صفحه -->
+    <div class="hero bg-gradient-to-r from-error to-warning rounded-3xl text-primary-content">
+        <div class="hero-content text-center py-8">
+            <div class="max-w-lg">
+                <h1 class="text-3xl font-bold mb-4">
+                    <i class="fas fa-users-cog ml-2"></i>
+                    مدیریت کاربران
+                </h1>
+                <p class="text-lg">
+                    ایجاد و مدیریت کاربران سیستم
+                </p>
             </div>
         </div>
-    </nav>
-
-    <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <!-- فرم ایجاد کاربر جدید -->
-        <div class="bg-white shadow overflow-hidden sm:rounded-lg mb-6">
-            <div class="px-4 py-5 sm:px-6">
-                <h3 class="text-lg leading-6 font-medium text-gray-900">ایجاد کاربر جدید</h3>
-                <p class="mt-1 max-w-2xl text-sm text-gray-500">فرم ایجاد کاربر جدید</p>
-            </div>
+    </div>
+    
+    <!-- فرم ایجاد کاربر جدید -->
+    <div class="card bg-base-100 shadow-xl border border-base-300">
+        <div class="card-body">
+            <h2 class="card-title text-2xl mb-6">
+                <i class="fas fa-user-plus text-primary ml-2"></i>
+                ایجاد کاربر جدید
+            </h2>
             
-            <div class="px-4 py-5 sm:p-6">
-                <?php echo $message; ?>
-                
-                <form method="POST" class="space-y-6">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">نام کاربری *</label>
+            <?php echo $message; ?>
+            
+            <form method="POST" class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-semibold">نام کاربری *</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-user"></i>
+                            </span>
                             <input type="text" name="username" required 
-                                   class="w-full border border-gray-300 rounded-md px-3 py-2"
+                                   class="input input-bordered w-full"
+                                   placeholder="نام کاربری را وارد کنید"
                                    value="<?php echo $_POST['username'] ?? ''; ?>">
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">رمز عبور *</label>
+                    </div>
+                    
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-semibold">رمز عبور *</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-lock"></i>
+                            </span>
                             <input type="password" name="password" required 
-                                   class="w-full border border-gray-300 rounded-md px-3 py-2">
+                                   class="input input-bordered w-full"
+                                   placeholder="رمز عبور را وارد کنید">
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">آدرس ایمیل</label>
+                    </div>
+                    
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-semibold">آدرس ایمیل</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-envelope"></i>
+                            </span>
                             <input type="email" name="email" 
-                                   class="w-full border border-gray-300 rounded-md px-3 py-2"
+                                   class="input input-bordered w-full"
+                                   placeholder="آدرس ایمیل را وارد کنید"
                                    value="<?php echo $_POST['email'] ?? ''; ?>">
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">تلفن همراه</label>
+                    </div>
+                    
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-semibold">تلفن همراه</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-phone"></i>
+                            </span>
                             <input type="text" name="phone" 
-                                   class="w-full border border-gray-300 rounded-md px-3 py-2"
+                                   class="input input-bordered w-full"
+                                   placeholder="شماره تلفن را وارد کنید"
                                    value="<?php echo $_POST['phone'] ?? ''; ?>">
                         </div>
                     </div>
+                </div>
 
-                    <div class="flex justify-end">
-                        <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">ایجاد کاربر</button>
-                    </div>
-                </form>
-            </div>
+                <div class="flex justify-end">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus ml-2"></i>
+                        ایجاد کاربر
+                    </button>
+                </div>
+            </form>
         </div>
+    </div>
 
-        <!-- لیست کاربران -->
-        <div class="bg-white shadow overflow-hidden sm:rounded-lg">
-            <div class="px-4 py-5 sm:px-6">
-                <h3 class="text-lg leading-6 font-medium text-gray-900">لیست کاربران</h3>
-                <p class="mt-1 max-w-2xl text-sm text-gray-500">لیست تمام کاربران سیستم</p>
+    <!-- لیست کاربران -->
+    <div class="card bg-base-100 shadow-xl border border-base-300">
+        <div class="card-body">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="card-title text-2xl">
+                    <i class="fas fa-list text-info ml-2"></i>
+                    لیست کاربران
+                </h2>
+                <div class="badge badge-info">
+                    <?php echo en2fa(count($users)); ?> کاربر
+                </div>
             </div>
             
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
+                <table class="table table-zebra">
+                    <thead>
                         <tr>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">شناسه</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">نام کاربری</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">ایمیل</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">تلفن</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">شناسه کاربری</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">نوع کاربر</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">تاریخ ایجاد</th>
+                            <th>شناسه</th>
+                            <th>نام کاربری</th>
+                            <th>ایمیل</th>
+                            <th>تلفن</th>
+                            <th>کد کاربری</th>
+                            <th>نوع کاربر</th>
+                            <th>تاریخ ایجاد</th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
+                    <tbody>
                         <?php foreach ($users as $user): ?>
-                        <tr>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                <?php echo en2fa($user['id']); ?>
+                        <tr class="hover">
+                            <td>
+                                <div class="badge badge-neutral">
+                                    <?php echo en2fa($user['id']); ?>
+                                </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                <?php echo $user['username']; ?>
+                            <td class="font-medium">
+                                <div class="flex items-center">
+                                    <i class="fas fa-user text-base-content/50 ml-2"></i>
+                                    <?php echo htmlspecialchars($user['username']); ?>
+                                </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                <?php echo $user['email'] ?: 'ندارد'; ?>
+                            <td>
+                                <div class="flex items-center">
+                                    <i class="fas fa-envelope text-base-content/50 ml-2"></i>
+                                    <?php echo $user['email'] ?: 'ندارد'; ?>
+                                </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                <?php echo $user['phone'] ?: 'ندارد'; ?>
+                            <td>
+                                <div class="flex items-center">
+                                    <i class="fas fa-phone text-base-content/50 ml-2"></i>
+                                    <?php echo $user['phone'] ?: 'ندارد'; ?>
+                                </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                <?php echo en2fa($user['user_id_code']); ?>
+                            <td>
+                                <code class="bg-base-200 px-2 py-1 rounded text-sm">
+                                    <?php echo en2fa($user['user_id_code']); ?>
+                                </code>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
-                                    <?php echo $user['is_admin'] ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'; ?>">
+                            <td>
+                                <div class="badge <?php echo $user['is_admin'] ? 'badge-error' : 'badge-info'; ?>">
+                                    <i class="fas <?php echo $user['is_admin'] ? 'fa-crown' : 'fa-user'; ?> ml-1"></i>
                                     <?php echo $user['is_admin'] ? 'مدیر' : 'کاربر'; ?>
-                                </span>
+                                </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                <?php echo en2fa(jalali_date('Y/m/d', strtotime($user['created_at']))); ?>
+                            <td>
+                                <div class="flex items-center">
+                                    <i class="fas fa-calendar text-base-content/50 ml-2"></i>
+                                    <?php echo en2fa(jalali_date('Y/m/d', strtotime($user['created_at']))); ?>
+                                </div>
                             </td>
                         </tr>
                         <?php endforeach; ?>
@@ -161,5 +219,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             </div>
         </div>
     </div>
-</body>
-</html>
+    
+</div>
+
+<?php include 'includes/footer.php'; ?>
