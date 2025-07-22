@@ -5,376 +5,491 @@ require_once 'functions.php';
 
 checkLogin();
 
-// کنترل تم
-$theme = $_GET['theme'] ?? 'light';
-$isDark = $theme === 'dark';
+$pageTitle = 'مدیریت درخواست‌ها - پاسخگو رایانه';
+$breadcrumbs = [
+    ['title' => 'مدیریت درخواست‌ها']
+];
 
-$requests = getAllRequests();
+// فیلترها
+$statusFilter = $_GET['status'] ?? '';
+$searchQuery = $_GET['search'] ?? '';
+$sortBy = $_GET['sort'] ?? 'created_at';
+$sortOrder = $_GET['order'] ?? 'DESC';
+
+// پیجینیشن
+$page = $_GET['page'] ?? 1;
+$perPage = 15;
+$offset = ($page - 1) * $perPage;
+
+// ساخت کوئری
+$whereConditions = [];
+$params = [];
+
+if ($statusFilter) {
+    $whereConditions[] = "r.status = ?";
+    $params[] = $statusFilter;
+}
+
+if ($searchQuery) {
+    $whereConditions[] = "(r.title LIKE ? OR r.tracking_code LIKE ? OR c.name LIKE ? OR c.phone LIKE ?)";
+    $searchTerm = "%$searchQuery%";
+    $params[] = $searchTerm;
+    $params[] = $searchTerm;
+    $params[] = $searchTerm;
+    $params[] = $searchTerm;
+}
+
+$whereClause = !empty($whereConditions) ? 'WHERE ' . implode(' AND ', $whereConditions) : '';
+
+// شمارش کل
+$countQuery = "SELECT COUNT(*) FROM requests r JOIN customers c ON r.customer_id = c.id $whereClause";
+$stmt = $pdo->prepare($countQuery);
+$stmt->execute($params);
+$totalRequests = $stmt->fetchColumn();
+$totalPages = ceil($totalRequests / $perPage);
+
+// دریافت درخواست‌ها
+$query = "
+    SELECT r.*, c.name as customer_name, c.phone as customer_phone
+    FROM requests r
+    JOIN customers c ON r.customer_id = c.id
+    $whereClause
+    ORDER BY r.$sortBy $sortOrder
+    LIMIT $perPage OFFSET $offset
+";
+
+$stmt = $pdo->prepare($query);
+$stmt->execute($params);
+$requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// آمار سریع
+$stats = getStats();
+
+include 'includes/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="fa" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مدیریت درخواست‌ها - سیستم مدیریت درخواست پاسخگو رایانه</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/font-face.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        body { font-family: 'Vazir', sans-serif; }
-        
-        /* تم تیره */
-        .dark-bg { background: linear-gradient(135deg, #1e293b 0%, #334155 100%); }
-        .dark-card { background: rgba(30, 41, 59, 0.95); border: 1px solid #475569; }
-        .dark-text { color: #e2e8f0; }
-        .dark-text-secondary { color: #94a3b8; }
-        
-        /* تم روشن */
-        .light-bg { background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); }
-        .light-card { background: white; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-        .light-text { color: #1e293b; }
-        .light-text-secondary { color: #64748b; }
-        
-        /* انیمیشن‌ها */
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-slide-in { animation: slideIn 0.5s ease-out; }
-        
-        /* ردیف جدول */
-        .table-row {
-            transition: all 0.2s ease;
-        }
-        .table-row:hover {
-            transform: translateX(4px);
-        }
-    </style>
-</head>
-<body class="min-h-screen <?php echo $isDark ? 'dark-bg' : 'light-bg'; ?>">
+
+<div class="space-y-8">
     
-    <!-- نوار ناوبری -->
-    <nav class="<?php echo $isDark ? 'bg-gray-800' : 'bg-white'; ?> shadow-lg sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16">
-                
-                <!-- لوگو و عنوان -->
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <a href="dashboard.php?theme=<?php echo $theme; ?>" class="text-xl font-bold <?php echo $isDark ? 'text-white' : 'text-gray-900'; ?>">
-                            <i class="fas fa-desktop ml-2 text-blue-500"></i>
-                            پاسخگو رایانه
-                        </a>
+    <!-- هدر صفحه -->
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+            <h1 class="text-3xl font-bold text-base-content flex items-center gap-3">
+                <div class="w-12 h-12 bg-primary rounded-xl flex items-center justify-center">
+                    <i class="fas fa-list text-primary-content text-xl"></i>
+                </div>
+                مدیریت درخواست‌ها
+            </h1>
+            <p class="text-base-content/70 mt-2">
+                مشاهده، جستجو و مدیریت تمامی درخواست‌های ثبت شده
+            </p>
+        </div>
+        
+        <div class="flex gap-3">
+            <a href="new_request.php" class="btn btn-primary">
+                <i class="fas fa-plus ml-2"></i>
+                درخواست جدید
+            </a>
+            <a href="search_requests.php" class="btn btn-outline btn-secondary">
+                <i class="fas fa-search ml-2"></i>
+                جستجوی پیشرفته
+            </a>
+        </div>
+    </div>
+    
+    <!-- آمار سریع -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="stat bg-base-100 shadow-lg border border-base-300 rounded-2xl">
+            <div class="stat-figure text-primary">
+                <i class="fas fa-clipboard-list text-3xl"></i>
+            </div>
+            <div class="stat-title">کل درخواست‌ها</div>
+            <div class="stat-value text-primary"><?php echo en2fa($stats['total_requests']); ?></div>
+        </div>
+        
+        <div class="stat bg-base-100 shadow-lg border border-base-300 rounded-2xl">
+            <div class="stat-figure text-warning">
+                <i class="fas fa-clock text-3xl"></i>
+            </div>
+            <div class="stat-title">در حال پردازش</div>
+            <div class="stat-value text-warning"><?php echo en2fa($stats['pending_requests']); ?></div>
+        </div>
+        
+        <div class="stat bg-base-100 shadow-lg border border-base-300 rounded-2xl">
+            <div class="stat-figure text-success">
+                <i class="fas fa-check-circle text-3xl"></i>
+            </div>
+            <div class="stat-title">تکمیل شده</div>
+            <div class="stat-value text-success"><?php echo en2fa($stats['completed_requests']); ?></div>
+        </div>
+        
+        <div class="stat bg-base-100 shadow-lg border border-base-300 rounded-2xl">
+            <div class="stat-figure text-info">
+                <i class="fas fa-filter text-3xl"></i>
+            </div>
+            <div class="stat-title">فیلتر شده</div>
+            <div class="stat-value text-info"><?php echo en2fa($totalRequests); ?></div>
+        </div>
+    </div>
+    
+    <!-- فیلترها و جستجو -->
+    <div class="card bg-base-100 shadow-xl border border-base-300">
+        <div class="card-body">
+            <h2 class="card-title mb-4">
+                <i class="fas fa-filter text-secondary ml-2"></i>
+                فیلترها و جستجو
+            </h2>
+            
+            <form method="GET" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    
+                    <!-- جستجو -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-medium">جستجو</span>
+                        </label>
+                        <input type="text" name="search" value="<?php echo htmlspecialchars($searchQuery); ?>" 
+                               placeholder="عنوان، کد رهگیری، نام مشتری..." 
+                               class="input input-bordered w-full">
+                    </div>
+                    
+                    <!-- فیلتر وضعیت -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-medium">وضعیت</span>
+                        </label>
+                        <select name="status" class="select select-bordered w-full">
+                            <option value="">همه</option>
+                            <option value="در حال پردازش" <?php echo $statusFilter == 'در حال پردازش' ? 'selected' : ''; ?>>در حال پردازش</option>
+                            <option value="تکمیل شده" <?php echo $statusFilter == 'تکمیل شده' ? 'selected' : ''; ?>>تکمیل شده</option>
+                            <option value="لغو شده" <?php echo $statusFilter == 'لغو شده' ? 'selected' : ''; ?>>لغو شده</option>
+                        </select>
+                    </div>
+                    
+                    <!-- مرتب‌سازی -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-medium">مرتب‌سازی بر اساس</span>
+                        </label>
+                        <select name="sort" class="select select-bordered w-full">
+                            <option value="created_at" <?php echo $sortBy == 'created_at' ? 'selected' : ''; ?>>تاریخ ثبت</option>
+                            <option value="title" <?php echo $sortBy == 'title' ? 'selected' : ''; ?>>عنوان</option>
+                            <option value="status" <?php echo $sortBy == 'status' ? 'selected' : ''; ?>>وضعیت</option>
+                            <option value="cost" <?php echo $sortBy == 'cost' ? 'selected' : ''; ?>>هزینه</option>
+                        </select>
+                    </div>
+                    
+                    <!-- ترتیب -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-medium">ترتیب</span>
+                        </label>
+                        <select name="order" class="select select-bordered w-full">
+                            <option value="DESC" <?php echo $sortOrder == 'DESC' ? 'selected' : ''; ?>>نزولی</option>
+                            <option value="ASC" <?php echo $sortOrder == 'ASC' ? 'selected' : ''; ?>>صعودی</option>
+                        </select>
                     </div>
                 </div>
                 
-                <!-- منوی ناوبری -->
-                <div class="hidden md:flex items-center space-x-4 space-x-reverse">
-                    <a href="dashboard.php?theme=<?php echo $theme; ?>" 
-                       class="px-3 py-2 rounded-md text-sm font-medium <?php echo $isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'; ?>">
-                        <i class="fas fa-home ml-1"></i>داشبورد
-                    </a>
-                    <a href="new_request.php?theme=<?php echo $theme; ?>" 
-                       class="px-3 py-2 rounded-md text-sm font-medium <?php echo $isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'; ?>">
-                        <i class="fas fa-plus-circle ml-1"></i>درخواست جدید
-                    </a>
-                    <a href="search_requests.php?theme=<?php echo $theme; ?>" 
-                       class="px-3 py-2 rounded-md text-sm font-medium <?php echo $isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'; ?>">
-                        <i class="fas fa-search ml-1"></i>جستجو
-                    </a>
-                    <a href="customers.php?theme=<?php echo $theme; ?>" 
-                       class="px-3 py-2 rounded-md text-sm font-medium <?php echo $isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'; ?>">
-                        <i class="fas fa-users ml-1"></i>مشتریان
-                    </a>
-                </div>
-                
-                <!-- کنترل‌های راست -->
-                <div class="flex items-center space-x-4 space-x-reverse">
-                    
-                    <!-- تغییر تم -->
-                    <div class="flex bg-gray-200 rounded-lg p-1">
-                        <a href="?theme=light" 
-                           class="px-3 py-1 rounded-md text-sm transition-colors <?php echo !$isDark ? 'bg-white text-blue-600 shadow' : 'text-gray-600 hover:text-gray-800'; ?>">
-                            <i class="fas fa-sun"></i>
-                        </a>
-                        <a href="?theme=dark" 
-                           class="px-3 py-1 rounded-md text-sm transition-colors <?php echo $isDark ? 'bg-gray-800 text-yellow-400 shadow' : 'text-gray-600 hover:text-gray-800'; ?>">
-                            <i class="fas fa-moon"></i>
-                        </a>
-                    </div>
-                    
-                    <!-- خروج -->
-                    <a href="logout.php" 
-                       class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
-                        <i class="fas fa-sign-out-alt ml-1"></i>خروج
-                    </a>
-                    
-                    <!-- منوی موبایل -->
-                    <button id="mobile-menu-btn" class="md:hidden p-2 rounded-md <?php echo $isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'; ?>">
-                        <i class="fas fa-bars"></i>
+                <div class="flex gap-3">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search ml-2"></i>
+                        جستجو
                     </button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- منوی موبایل -->
-        <div id="mobile-menu" class="md:hidden hidden <?php echo $isDark ? 'bg-gray-700' : 'bg-gray-50'; ?> border-t">
-            <div class="px-2 pt-2 pb-3 space-y-1">
-                <a href="dashboard.php?theme=<?php echo $theme; ?>" class="block px-3 py-2 rounded-md text-base font-medium <?php echo $isDark ? 'text-gray-300 hover:bg-gray-600' : 'text-gray-700 hover:bg-gray-100'; ?>">
-                    <i class="fas fa-home ml-2"></i>داشبورد
-                </a>
-                <a href="new_request.php?theme=<?php echo $theme; ?>" class="block px-3 py-2 rounded-md text-base font-medium <?php echo $isDark ? 'text-gray-300 hover:bg-gray-600' : 'text-gray-700 hover:bg-gray-100'; ?>">
-                    <i class="fas fa-plus-circle ml-2"></i>درخواست جدید
-                </a>
-                <a href="search_requests.php?theme=<?php echo $theme; ?>" class="block px-3 py-2 rounded-md text-base font-medium <?php echo $isDark ? 'text-gray-300 hover:bg-gray-600' : 'text-gray-700 hover:bg-gray-100'; ?>">
-                    <i class="fas fa-search ml-2"></i>جستجو
-                </a>
-                <a href="customers.php?theme=<?php echo $theme; ?>" class="block px-3 py-2 rounded-md text-base font-medium <?php echo $isDark ? 'text-gray-300 hover:bg-gray-600' : 'text-gray-700 hover:bg-gray-100'; ?>">
-                    <i class="fas fa-users ml-2"></i>مشتریان
-                </a>
-            </div>
-        </div>
-    </nav>
-
-    <!-- محتوای اصلی -->
-    <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        
-        <!-- عنوان و اقدامات سریع -->
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 animate-slide-in">
-            <div>
-                <h1 class="text-3xl font-bold <?php echo $isDark ? 'dark-text' : 'light-text'; ?>">
-                    <i class="fas fa-list ml-3 text-purple-500"></i>
-                    مدیریت درخواست‌ها
-                </h1>
-                <p class="mt-2 <?php echo $isDark ? 'dark-text-secondary' : 'light-text-secondary'; ?>">
-                    مشاهده و مدیریت تمام درخواست‌های ثبت شده
-                </p>
-            </div>
-            
-            <div class="mt-4 sm:mt-0 flex flex-col sm:flex-row gap-3">
-                <a href="search_requests.php?theme=<?php echo $theme; ?>" 
-                   class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors text-center">
-                    <i class="fas fa-search ml-2"></i>
-                    جستجوی پیشرفته
-                </a>
-                <a href="new_request.php?theme=<?php echo $theme; ?>" 
-                   class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors text-center">
-                    <i class="fas fa-plus-circle ml-2"></i>
-                    درخواست جدید
-                </a>
-            </div>
-        </div>
-
-        <!-- آمار سریع -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8 animate-slide-in">
-            <div class="<?php echo $isDark ? 'dark-card' : 'light-card'; ?> rounded-xl p-6">
-                <div class="flex items-center">
-                    <div class="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center mr-4">
-                        <i class="fas fa-clipboard-list text-white text-xl"></i>
-                    </div>
-                    <div>
-                        <p class="text-sm font-medium <?php echo $isDark ? 'dark-text-secondary' : 'light-text-secondary'; ?>">کل درخواست‌ها</p>
-                        <p class="text-2xl font-bold <?php echo $isDark ? 'dark-text' : 'light-text'; ?>"><?php echo en2fa(count($requests)); ?></p>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="<?php echo $isDark ? 'dark-card' : 'light-card'; ?> rounded-xl p-6">
-                <div class="flex items-center">
-                    <div class="w-12 h-12 bg-yellow-500 rounded-lg flex items-center justify-center mr-4">
-                        <i class="fas fa-clock text-white text-xl"></i>
-                    </div>
-                    <div>
-                        <p class="text-sm font-medium <?php echo $isDark ? 'dark-text-secondary' : 'light-text-secondary'; ?>">در انتظار</p>
-                        <p class="text-2xl font-bold <?php echo $isDark ? 'dark-text' : 'light-text'; ?>">
-                            <?php echo en2fa(count(array_filter($requests, function($r) { return $r['status'] == 'در حال بررسی'; }))); ?>
-                        </p>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="<?php echo $isDark ? 'dark-card' : 'light-card'; ?> rounded-xl p-6">
-                <div class="flex items-center">
-                    <div class="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center mr-4">
-                        <i class="fas fa-check-circle text-white text-xl"></i>
-                    </div>
-                    <div>
-                        <p class="text-sm font-medium <?php echo $isDark ? 'dark-text-secondary' : 'light-text-secondary'; ?>">تکمیل شده</p>
-                        <p class="text-2xl font-bold <?php echo $isDark ? 'dark-text' : 'light-text'; ?>">
-                            <?php echo en2fa(count(array_filter($requests, function($r) { return $r['status'] == 'تکمیل شده'; }))); ?>
-                        </p>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="<?php echo $isDark ? 'dark-card' : 'light-card'; ?> rounded-xl p-6">
-                <div class="flex items-center">
-                    <div class="w-12 h-12 bg-red-500 rounded-lg flex items-center justify-center mr-4">
-                        <i class="fas fa-times-circle text-white text-xl"></i>
-                    </div>
-                    <div>
-                        <p class="text-sm font-medium <?php echo $isDark ? 'dark-text-secondary' : 'light-text-secondary'; ?>">لغو شده</p>
-                        <p class="text-2xl font-bold <?php echo $isDark ? 'dark-text' : 'light-text'; ?>">
-                            <?php echo en2fa(count(array_filter($requests, function($r) { return $r['status'] == 'لغو شده'; }))); ?>
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- جدول درخواست‌ها -->
-        <div class="<?php echo $isDark ? 'dark-card' : 'light-card'; ?> rounded-xl overflow-hidden animate-slide-in">
-            <div class="px-6 py-5 border-b <?php echo $isDark ? 'border-gray-600' : 'border-gray-200'; ?>">
-                <h3 class="text-lg font-semibold <?php echo $isDark ? 'dark-text' : 'light-text'; ?>">
-                    <i class="fas fa-table ml-2 text-blue-500"></i>
-                    لیست درخواست‌ها
-                </h3>
-                <p class="mt-1 <?php echo $isDark ? 'dark-text-secondary' : 'light-text-secondary'; ?> text-sm">
-                    نمایش تمام درخواست‌های ثبت شده به همراه وضعیت و جزئیات
-                </p>
-            </div>
-            
-            <div class="overflow-x-auto">
-                <?php if (empty($requests)): ?>
-                <div class="text-center py-12">
-                    <i class="fas fa-inbox text-6xl <?php echo $isDark ? 'text-gray-400' : 'text-gray-300'; ?> mb-4"></i>
-                    <h3 class="text-lg font-medium <?php echo $isDark ? 'dark-text' : 'light-text'; ?> mb-2">هیچ درخواستی یافت نشد</h3>
-                    <p class="<?php echo $isDark ? 'dark-text-secondary' : 'light-text-secondary'; ?> mb-6">هنوز درخواستی ثبت نشده است</p>
-                    <a href="new_request.php?theme=<?php echo $theme; ?>" 
-                       class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-medium transition-colors">
-                        <i class="fas fa-plus-circle ml-2"></i>
-                        اولین درخواست را ثبت کنید
+                    <a href="requests.php" class="btn btn-ghost">
+                        <i class="fas fa-times ml-2"></i>
+                        پاک کردن فیلترها
                     </a>
                 </div>
-                <?php else: ?>
-                <table class="min-w-full">
-                    <thead class="<?php echo $isDark ? 'bg-gray-700' : 'bg-gray-50'; ?>">
-                        <tr>
-                            <th class="px-6 py-3 text-right text-xs font-medium <?php echo $isDark ? 'text-gray-300' : 'text-gray-500'; ?> uppercase tracking-wider">کد رهگیری</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium <?php echo $isDark ? 'text-gray-300' : 'text-gray-500'; ?> uppercase tracking-wider">عنوان</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium <?php echo $isDark ? 'text-gray-300' : 'text-gray-500'; ?> uppercase tracking-wider">مشتری</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium <?php echo $isDark ? 'text-gray-300' : 'text-gray-500'; ?> uppercase tracking-wider">دستگاه</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium <?php echo $isDark ? 'text-gray-300' : 'text-gray-500'; ?> uppercase tracking-wider">وضعیت</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium <?php echo $isDark ? 'text-gray-300' : 'text-gray-500'; ?> uppercase tracking-wider">تاریخ ایجاد</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium <?php echo $isDark ? 'text-gray-300' : 'text-gray-500'; ?> uppercase tracking-wider">عملیات</th>
+            </form>
+        </div>
+    </div>
+    
+    <!-- جدول درخواست‌ها -->
+    <div class="card bg-base-100 shadow-xl border border-base-300">
+        <div class="card-body p-0">
+            
+            <!-- هدر جدول -->
+            <div class="p-6 border-b border-base-300">
+                <div class="flex items-center justify-between">
+                    <h2 class="card-title">
+                        <i class="fas fa-table text-accent ml-2"></i>
+                        لیست درخواست‌ها
+                    </h2>
+                    <div class="text-sm text-base-content/70">
+                        نمایش <?php echo en2fa($offset + 1); ?> تا <?php echo en2fa(min($offset + $perPage, $totalRequests)); ?> از <?php echo en2fa($totalRequests); ?> درخواست
+                    </div>
+                </div>
+            </div>
+            
+            <?php if (empty($requests)): ?>
+            <!-- پیام خالی -->
+            <div class="text-center py-16">
+                <div class="w-24 h-24 bg-base-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-inbox text-4xl text-base-content/30"></i>
+                </div>
+                <h3 class="text-xl font-bold text-base-content mb-2">درخواستی یافت نشد</h3>
+                <p class="text-base-content/70 mb-6">
+                    <?php if ($searchQuery || $statusFilter): ?>
+                        با فیلترهای انتخاب شده، درخواستی پیدا نشد. لطفاً فیلترها را تغییر دهید.
+                    <?php else: ?>
+                        هنوز هیچ درخواستی ثبت نشده است. اولین درخواست را ایجاد کنید.
+                    <?php endif; ?>
+                </p>
+                <a href="new_request.php" class="btn btn-primary">
+                    <i class="fas fa-plus ml-2"></i>
+                    ثبت درخواست جدید
+                </a>
+            </div>
+            
+            <?php else: ?>
+            
+            <!-- جدول -->
+            <div class="overflow-x-auto">
+                <table class="table table-zebra">
+                    <thead>
+                        <tr class="bg-base-200">
+                            <th>کد رهگیری</th>
+                            <th>عنوان</th>
+                            <th>مشتری</th>
+                            <th>وضعیت</th>
+                            <th>تاریخ ثبت</th>
+                            <th>هزینه</th>
+                            <th class="text-center">عملیات</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y <?php echo $isDark ? 'divide-gray-600' : 'divide-gray-200'; ?>">
+                    <tbody>
                         <?php foreach ($requests as $request): ?>
-                        <tr class="table-row hover:<?php echo $isDark ? 'bg-gray-700' : 'bg-gray-50'; ?> transition-colors">
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="font-mono text-sm font-bold <?php echo $isDark ? 'dark-text' : 'light-text'; ?>">
-                                    <?php echo en2fa($request['tracking_code']); ?>
-                                </span>
-                            </td>
-                            <td class="px-6 py-4">
-                                <div class="text-sm font-medium <?php echo $isDark ? 'dark-text' : 'light-text'; ?>">
-                                    <?php echo htmlspecialchars($request['title']); ?>
-                                </div>
-                                <div class="text-xs <?php echo $isDark ? 'dark-text-secondary' : 'light-text-secondary'; ?>">
-                                    <?php echo htmlspecialchars(substr($request['problem_description'], 0, 50)); ?><?php echo strlen($request['problem_description']) > 50 ? '...' : ''; ?>
+                        <tr class="hover">
+                            <td>
+                                <div class="flex items-center gap-2">
+                                    <code class="bg-primary/10 text-primary px-2 py-1 rounded font-bold">
+                                        <?php echo en2fa($request['tracking_code']); ?>
+                                    </code>
+                                    <button onclick="copyToClipboard('<?php echo $request['tracking_code']; ?>')" 
+                                            class="btn btn-ghost btn-xs">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
                                 </div>
                             </td>
-                            <td class="px-6 py-4">
-                                <div class="text-sm font-medium <?php echo $isDark ? 'dark-text' : 'light-text'; ?>">
-                                    <?php echo htmlspecialchars($request['customer_name']); ?>
-                                </div>
-                                <div class="text-xs <?php echo $isDark ? 'dark-text-secondary' : 'light-text-secondary'; ?> font-mono">
-                                    <?php echo $request['customer_phone']; ?>
+                            
+                            <td>
+                                <div class="max-w-xs">
+                                    <div class="font-medium text-base-content">
+                                        <?php echo htmlspecialchars($request['title']); ?>
+                                    </div>
+                                    <?php if ($request['device_model']): ?>
+                                    <div class="text-sm text-base-content/60">
+                                        <?php echo htmlspecialchars($request['device_model']); ?>
+                                    </div>
+                                    <?php endif; ?>
                                 </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="text-sm <?php echo $isDark ? 'dark-text' : 'light-text'; ?>">
-                                    <?php echo htmlspecialchars($request['device_model']); ?>
+                            
+                            <td>
+                                <div class="flex items-center gap-3">
+                                    <div class="avatar placeholder">
+                                        <div class="bg-primary text-primary-content rounded-full w-8">
+                                            <span class="text-xs"><?php echo mb_substr($request['customer_name'], 0, 1); ?></span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="font-medium text-base-content">
+                                            <?php echo htmlspecialchars($request['customer_name']); ?>
+                                        </div>
+                                        <div class="text-sm text-base-content/60">
+                                            <?php echo $request['customer_phone']; ?>
+                                        </div>
+                                    </div>
                                 </div>
-                                <?php if (!empty($request['imei1'])): ?>
-                                <div class="text-xs <?php echo $isDark ? 'dark-text-secondary' : 'light-text-secondary'; ?> font-mono">
-                                    IMEI: <?php echo en2fa($request['imei1']); ?>
-                                </div>
-                                <?php endif; ?>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                    <?php 
+                            
+                            <td>
+                                <div class="badge <?php 
                                     switch($request['status']) {
                                         case 'تکمیل شده':
-                                            echo 'bg-green-100 text-green-800';
+                                            echo 'badge-success';
                                             break;
                                         case 'لغو شده':
-                                            echo 'bg-red-100 text-red-800';
+                                            echo 'badge-error';
                                             break;
                                         default:
-                                            echo 'bg-yellow-100 text-yellow-800';
+                                            echo 'badge-warning';
                                     }
                                     ?>">
                                     <?php echo $request['status']; ?>
-                                </span>
+                                </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm <?php echo $isDark ? 'dark-text-secondary' : 'light-text-secondary'; ?>">
-                                <?php echo en2fa(jalali_date('Y/m/d', strtotime($request['created_at']))); ?>
+                            
+                            <td>
+                                <div class="text-sm">
+                                    <div class="font-medium"><?php echo en2fa(jalali_date('Y/m/d', strtotime($request['created_at']))); ?></div>
+                                    <div class="text-base-content/60"><?php echo en2fa(date('H:i', strtotime($request['created_at']))); ?></div>
+                                </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="flex items-center gap-2">
-                                    <a href="view_request.php?id=<?php echo $request['id']; ?>&theme=<?php echo $theme; ?>" 
-                                       class="text-blue-600 hover:text-blue-900 text-sm" title="مشاهده جزئیات">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    <a href="edit_request.php?id=<?php echo $request['id']; ?>&theme=<?php echo $theme; ?>" 
-                                       class="text-green-600 hover:text-green-900 text-sm" title="ویرایش">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <a href="print_receipt.php?id=<?php echo $request['id']; ?>" 
-                                       class="text-purple-600 hover:text-purple-900 text-sm" title="چاپ رسید">
-                                        <i class="fas fa-print"></i>
-                                    </a>
+                            
+                            <td>
+                                <div class="font-bold text-lg">
+                                    <?php echo en2fa(number_format($request['cost'])); ?>
+                                    <span class="text-sm font-normal text-base-content/60">تومان</span>
+                                </div>
+                            </td>
+                            
+                            <td>
+                                <div class="flex justify-center gap-1">
+                                    <div class="dropdown dropdown-end">
+                                        <div tabindex="0" role="button" class="btn btn-ghost btn-sm">
+                                            <i class="fas fa-ellipsis-v"></i>
+                                        </div>
+                                        <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
+                                            <li>
+                                                <a href="view_request.php?id=<?php echo $request['id']; ?>" class="text-sm">
+                                                    <i class="fas fa-eye"></i>
+                                                    مشاهده جزئیات
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a href="edit_request.php?id=<?php echo $request['id']; ?>" class="text-sm">
+                                                    <i class="fas fa-edit"></i>
+                                                    ویرایش
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a href="print_receipt.php?id=<?php echo $request['id']; ?>" class="text-sm">
+                                                    <i class="fas fa-print"></i>
+                                                    چاپ رسید
+                                                </a>
+                                            </li>
+                                            <li class="divider"></li>
+                                            <li>
+                                                <a href="add_payment.php?request_id=<?php echo $request['id']; ?>" class="text-sm">
+                                                    <i class="fas fa-credit-card"></i>
+                                                    افزودن پرداخت
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a href="send_sms.php?request_id=<?php echo $request['id']; ?>" class="text-sm">
+                                                    <i class="fas fa-sms"></i>
+                                                    ارسال پیامک
+                                                </a>
+                                            </li>
+                                            <li class="divider"></li>
+                                            <li>
+                                                <a onclick="deleteRequest(<?php echo $request['id']; ?>)" class="text-sm text-error">
+                                                    <i class="fas fa-trash"></i>
+                                                    حذف
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
                                 </div>
                             </td>
                         </tr>
                         <?php endforeach; ?>
                     </tbody>
                 </table>
-                <?php endif; ?>
             </div>
             
-            <?php if (!empty($requests)): ?>
-            <!-- پاورقی جدول -->
-            <div class="<?php echo $isDark ? 'bg-gray-700' : 'bg-gray-50'; ?> px-6 py-4">
-                <div class="flex items-center justify-between">
-                    <div class="text-sm <?php echo $isDark ? 'dark-text-secondary' : 'light-text-secondary'; ?>">
-                        نمایش <?php echo en2fa(count($requests)); ?> درخواست
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <a href="print_all_requests.php" class="text-sm text-blue-600 hover:text-blue-800">
-                            <i class="fas fa-print ml-1"></i>
-                            چاپ همه
-                        </a>
-                        <span class="text-gray-300">|</span>
-                        <a href="export_requests.php" class="text-sm text-green-600 hover:text-green-800">
-                            <i class="fas fa-download ml-1"></i>
-                            دانلود Excel
-                        </a>
-                    </div>
-                </div>
-            </div>
             <?php endif; ?>
         </div>
-        
-    </main>
+    </div>
+    
+    <!-- پیجینیشن -->
+    <?php if ($totalPages > 1): ?>
+    <div class="flex justify-center">
+        <div class="join">
+            <!-- صفحه قبل -->
+            <?php if ($page > 1): ?>
+            <a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page - 1])); ?>" 
+               class="join-item btn">
+                <i class="fas fa-chevron-right"></i>
+            </a>
+            <?php endif; ?>
+            
+            <!-- شماره صفحات -->
+            <?php 
+            $startPage = max(1, $page - 2);
+            $endPage = min($totalPages, $page + 2);
+            
+            for ($i = $startPage; $i <= $endPage; $i++): ?>
+                <a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $i])); ?>" 
+                   class="join-item btn <?php echo $i == $page ? 'btn-active' : ''; ?>">
+                    <?php echo en2fa($i); ?>
+                </a>
+            <?php endfor; ?>
+            
+            <!-- صفحه بعد -->
+            <?php if ($page < $totalPages): ?>
+            <a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page + 1])); ?>" 
+               class="join-item btn">
+                <i class="fas fa-chevron-left"></i>
+            </a>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php endif; ?>
+    
+</div>
 
-    <!-- جاوا اسکریپت -->
-    <script>
-        // منوی موبایل
-        document.getElementById('mobile-menu-btn').addEventListener('click', function() {
-            const menu = document.getElementById('mobile-menu');
-            menu.classList.toggle('hidden');
-        });
-        
-        // بستن منوی موبایل در صفحات بزرگ
-        window.addEventListener('resize', function() {
-            if (window.innerWidth >= 768) {
-                document.getElementById('mobile-menu').classList.add('hidden');
-            }
-        });
-    </script>
-</body>
-</html>
+<!-- مودال تایید حذف -->
+<dialog id="deleteModal" class="modal">
+    <div class="modal-box">
+        <h3 class="font-bold text-lg text-error">
+            <i class="fas fa-exclamation-triangle ml-2"></i>
+            تایید حذف
+        </h3>
+        <p class="py-4">آیا از حذف این درخواست اطمینان دارید؟ این عمل قابل بازگشت نیست.</p>
+        <div class="modal-action">
+            <form method="dialog">
+                <button class="btn">انصراف</button>
+            </form>
+            <button id="confirmDelete" class="btn btn-error">
+                <i class="fas fa-trash ml-1"></i>
+                حذف
+            </button>
+        </div>
+    </div>
+</dialog>
+
+<script>
+    let deleteRequestId = null;
+    
+    function deleteRequest(id) {
+        deleteRequestId = id;
+        document.getElementById('deleteModal').showModal();
+    }
+    
+    document.getElementById('confirmDelete').addEventListener('click', function() {
+        if (deleteRequestId) {
+            // ارسال درخواست حذف
+            fetch('delete_request.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ id: deleteRequestId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('درخواست با موفقیت حذف شد', 'success');
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showToast('خطا در حذف درخواست', 'error');
+                }
+            })
+            .catch(error => {
+                showToast('خطا در ارتباط با سرور', 'error');
+            });
+            
+            document.getElementById('deleteModal').close();
+        }
+    });
+    
+    // تابع ایجاد درخواست فوری
+    function createQuickRequest() {
+        // فتح یک مودال یا صفحه جدید برای ایجاد سریع درخواست
+        window.open('new_request.php?quick=1', '_blank', 'width=800,height=600');
+    }
+</script>
+
+<?php include 'includes/footer.php'; ?>

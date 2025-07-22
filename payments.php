@@ -5,21 +5,31 @@ require_once 'functions.php';
 
 checkLogin();
 
-// دریافت پارامترهای فیلتر
-$startDate = $_GET['start_date'] ?? '';
-$endDate = $_GET['end_date'] ?? '';
-$customerId = $_GET['customer_id'] ?? '';
+$pageTitle = 'مدیریت مالی - پاسخگو رایانه';
+$breadcrumbs = [
+    ['title' => 'مدیریت مالی']
+];
 
-// تنظیم تاریخ‌های پیش‌فرض (یک ماه گذشته)
-if (!$startDate) {
-    $startDate = date('Y-m-d', strtotime('-30 days'));
-}
-if (!$endDate) {
-    $endDate = date('Y-m-d');
-}
+// دریافت پارامترهای فیلتر
+$startDate = $_GET['start_date'] ?? date('Y-m-d', strtotime('-30 days'));
+$endDate = $_GET['end_date'] ?? date('Y-m-d');
+$customerId = $_GET['customer_id'] ?? '';
+$paymentType = $_GET['payment_type'] ?? '';
+
+// پیجینیشن
+$page = $_GET['page'] ?? 1;
+$perPage = 20;
+$offset = ($page - 1) * $perPage;
 
 // دریافت تراکنش‌ها با فیلتر
 $transactions = getTransactionsWithFilter($startDate, $endDate, $customerId);
+
+// فیلتر بر اساس نوع پرداخت
+if ($paymentType) {
+    $transactions = array_filter($transactions, function($t) use ($paymentType) {
+        return $t['payment_type'] == $paymentType;
+    });
+}
 
 // آمار مالی کلی
 $stats = getStats();
@@ -27,424 +37,570 @@ $stats = getStats();
 // آمار مالی در بازه انتخابی
 $periodStats = getFinancialStatsByDateRange($startDate, $endDate);
 
+// آمار ماهانه برای چارت
+$monthlyData = [];
+for ($i = 11; $i >= 0; $i--) {
+    $month = date('Y-m', strtotime("-$i months"));
+    $monthStats = getFinancialStatsByDateRange(
+        date('Y-m-01', strtotime("-$i months")),
+        date('Y-m-t', strtotime("-$i months"))
+    );
+    $monthlyData[] = [
+        'month' => $month,
+        'income' => $monthStats['total_income'],
+        'expenses' => $monthStats['total_debt'],
+        'net' => $monthStats['net_income']
+    ];
+}
+
 // دریافت مشتریان برای فیلتر
 $customers = getAllCustomers();
 
-// کنترل تم (قالب)
-$theme = $_GET['theme'] ?? 'light';
-$isDark = $theme === 'dark';
+// آمار کوتاه مدت
+$shortStats = getShortTermStats();
+
+include 'includes/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="fa" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مدیریت مالی - مدیریت درخواست پاسخگو رایانه</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/font-face.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        body { font-family: 'Vazir', sans-serif; }
-        <?php if ($isDark): ?>
-        .dark-theme {
-            background: linear-gradient(135deg, #1e3a8a 0%, #3730a3 100%);
-            color: #e5e7eb;
-        }
-        .dark-card {
-            background: rgba(31, 41, 55, 0.9);
-            border: 1px solid #374151;
-        }
-        .dark-input {
-            background: #374151;
-            border: 1px solid #4b5563;
-            color: #e5e7eb;
-        }
-        .dark-input:focus {
-            border-color: #6366f1;
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-        }
-        <?php endif; ?>
-        .chart-container {
-            position: relative;
-            height: 300px;
-        }
-    </style>
-</head>
-<body class="<?php echo $isDark ? 'dark-theme min-h-screen' : 'bg-gray-100'; ?>">
-    <!-- Navigation -->
-    <nav class="<?php echo $isDark ? 'bg-gray-800 shadow-lg' : 'bg-white shadow-lg'; ?>">
-        <div class="max-w-7xl mx-auto px-4">
-            <div class="flex justify-between h-16">
-                <div class="flex items-center">
-                    <a href="dashboard.php?theme=<?php echo $theme; ?>" class="text-xl font-bold <?php echo $isDark ? 'text-white' : 'text-gray-800'; ?>">
-                        مدیریت درخواست پاسخگو رایانه
-                    </a>
-                </div>
-                <div class="flex items-center space-x-4 space-x-reverse">
-                    <!-- Navigation Menu -->
-                    <div class="hidden md:flex space-x-2 space-x-reverse">
-                        <a href="dashboard.php?theme=<?php echo $theme; ?>" class="px-3 py-2 rounded <?php echo $isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'; ?>">
-                            <i class="fas fa-home ml-1"></i>داشبورد
-                        </a>
-                        <a href="new_request.php?theme=<?php echo $theme; ?>" class="px-3 py-2 rounded <?php echo $isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'; ?>">
-                            <i class="fas fa-plus-circle ml-1"></i>درخواست جدید
-                        </a>
-                        <a href="requests.php?theme=<?php echo $theme; ?>" class="px-3 py-2 rounded <?php echo $isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'; ?>">
-                            <i class="fas fa-list ml-1"></i>درخواست‌ها
-                        </a>
-                        <a href="customers.php?theme=<?php echo $theme; ?>" class="px-3 py-2 rounded <?php echo $isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'; ?>">
-                            <i class="fas fa-users ml-1"></i>مشتریان
-                        </a>
-                        <a href="add_payment.php?theme=<?php echo $theme; ?>" class="px-3 py-2 rounded bg-green-500 text-white hover:bg-green-600">
-                            <i class="fas fa-plus ml-1"></i>پرداخت جدید
-                        </a>
-                    </div>
-                    
-                    <!-- Mobile Menu Button -->
-                    <div class="md:hidden">
-                        <button id="mobile-menu-button" class="<?php echo $isDark ? 'text-gray-300' : 'text-gray-700'; ?> hover:bg-gray-100 p-2 rounded">
-                            <i class="fas fa-bars"></i>
-                        </button>
-                    </div>
-                    
-                    <span class="<?php echo $isDark ? 'text-gray-300' : 'text-gray-700'; ?> hidden sm:block">خوش آمدید، <?php echo $_SESSION['username']; ?></span>
-                    
-                    <!-- Theme Toggle -->
-                    <div class="flex space-x-2">
-                        <a href="?theme=light&start_date=<?php echo $startDate; ?>&end_date=<?php echo $endDate; ?>&customer_id=<?php echo $customerId; ?>" 
-                           class="px-3 py-1 rounded <?php echo !$isDark ? 'bg-blue-500 text-white' : 'bg-gray-600 text-gray-300'; ?>" title="حالت روشن">
-                            <i class="fas fa-sun"></i>
-                        </a>
-                        <a href="?theme=dark&start_date=<?php echo $startDate; ?>&end_date=<?php echo $endDate; ?>&customer_id=<?php echo $customerId; ?>" 
-                           class="px-3 py-1 rounded <?php echo $isDark ? 'bg-blue-500 text-white' : 'bg-gray-600 text-gray-300'; ?>" title="حالت تیره">
-                            <i class="fas fa-moon"></i>
-                        </a>
-                    </div>
-                    
-                    <a href="logout.php" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">خروج</a>
-                </div>
-            </div>
-            
-            <!-- Mobile Menu -->
-            <div id="mobile-menu" class="md:hidden hidden <?php echo $isDark ? 'bg-gray-700' : 'bg-white'; ?> border-t">
-                <div class="px-2 pt-2 pb-3 space-y-1">
-                    <a href="dashboard.php?theme=<?php echo $theme; ?>" class="block px-3 py-2 rounded <?php echo $isDark ? 'text-gray-300 hover:bg-gray-600' : 'text-gray-700 hover:bg-gray-100'; ?>">
-                        <i class="fas fa-home ml-2"></i>داشبورد
-                    </a>
-                    <a href="new_request.php?theme=<?php echo $theme; ?>" class="block px-3 py-2 rounded <?php echo $isDark ? 'text-gray-300 hover:bg-gray-600' : 'text-gray-700 hover:bg-gray-100'; ?>">
-                        <i class="fas fa-plus-circle ml-2"></i>درخواست جدید
-                    </a>
-                    <a href="requests.php?theme=<?php echo $theme; ?>" class="block px-3 py-2 rounded <?php echo $isDark ? 'text-gray-300 hover:bg-gray-600' : 'text-gray-700 hover:bg-gray-100'; ?>">
-                        <i class="fas fa-list ml-2"></i>درخواست‌ها
-                    </a>
-                    <a href="customers.php?theme=<?php echo $theme; ?>" class="block px-3 py-2 rounded <?php echo $isDark ? 'text-gray-300 hover:bg-gray-600' : 'text-gray-700 hover:bg-gray-100'; ?>">
-                        <i class="fas fa-users ml-2"></i>مشتریان
-                    </a>
-                    <a href="add_payment.php?theme=<?php echo $theme; ?>" class="block px-3 py-2 rounded bg-green-500 text-white hover:bg-green-600">
-                        <i class="fas fa-plus ml-2"></i>پرداخت جدید
-                    </a>
-                </div>
-            </div>
-    </nav>
 
-    <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <!-- Financial Stats Overview -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-            <div class="<?php echo $isDark ? 'dark-card' : 'bg-white'; ?> overflow-hidden shadow rounded-lg">
-                <div class="p-5">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0">
-                            <i class="fas fa-chart-line text-2xl text-green-500"></i>
-                        </div>
-                        <div class="mr-5 w-0 flex-1">
-                            <dl>
-                                <dt class="text-sm font-medium <?php echo $isDark ? 'text-gray-300' : 'text-gray-500'; ?> truncate">کل درآمد</dt>
-                                <dd class="text-lg font-medium <?php echo $isDark ? 'text-white' : 'text-gray-900'; ?>"><?php echo en2fa(formatNumber($stats['total_income'])); ?> تومان</dd>
-                            </dl>
-                        </div>
+<div class="space-y-8">
+    
+    <!-- هدر صفحه -->
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+            <h1 class="text-3xl font-bold text-base-content flex items-center gap-3">
+                <div class="w-12 h-12 bg-success rounded-xl flex items-center justify-center">
+                    <i class="fas fa-credit-card text-success-content text-xl"></i>
+                </div>
+                مدیریت مالی
+            </h1>
+            <p class="text-base-content/70 mt-2">
+                گزارش‌گیری مالی، تراکنش‌ها و آمار درآمد
+            </p>
+        </div>
+        
+        <div class="flex gap-3">
+            <a href="add_payment.php" class="btn btn-primary">
+                <i class="fas fa-plus ml-2"></i>
+                تراکنش جدید
+            </a>
+            <button onclick="exportToExcel()" class="btn btn-outline btn-success">
+                <i class="fas fa-file-excel ml-2"></i>
+                خروجی Excel
+            </button>
+        </div>
+    </div>
+    
+    <!-- آمار کلی -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        
+        <!-- کل درآمد -->
+        <div class="card bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-xl">
+            <div class="card-body">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-lg font-semibold opacity-90">کل درآمد</h3>
+                        <p class="text-3xl font-bold"><?php echo en2fa(number_format($stats['total_income'])); ?></p>
+                        <p class="text-sm opacity-75">تومان</p>
+                    </div>
+                    <div class="w-16 h-16 bg-white bg-opacity-20 rounded-2xl flex items-center justify-center">
+                        <i class="fas fa-arrow-up text-2xl"></i>
                     </div>
                 </div>
-            </div>
-
-            <div class="<?php echo $isDark ? 'dark-card' : 'bg-white'; ?> overflow-hidden shadow rounded-lg">
-                <div class="p-5">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0">
-                            <i class="fas fa-chart-pie text-2xl text-red-500"></i>
-                        </div>
-                        <div class="mr-5 w-0 flex-1">
-                            <dl>
-                                <dt class="text-sm font-medium <?php echo $isDark ? 'text-gray-300' : 'text-gray-500'; ?> truncate">کل بدهکاری</dt>
-                                <dd class="text-lg font-medium <?php echo $isDark ? 'text-white' : 'text-gray-900'; ?>"><?php echo en2fa(formatNumber($stats['total_debt'])); ?> تومان</dd>
-                            </dl>
-                        </div>
+                <div class="mt-4 flex items-center gap-2">
+                    <div class="badge badge-success badge-sm">
+                        +<?php echo en2fa(number_format($shortStats['income_last_30_days'])); ?>
                     </div>
+                    <span class="text-sm opacity-75">۳۰ روز گذشته</span>
                 </div>
             </div>
-
-            <div class="<?php echo $isDark ? 'dark-card' : 'bg-white'; ?> overflow-hidden shadow rounded-lg">
-                <div class="p-5">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0">
-                            <i class="fas fa-balance-scale text-2xl text-purple-500"></i>
-                        </div>
-                        <div class="mr-5 w-0 flex-1">
-                            <dl>
-                                <dt class="text-sm font-medium <?php echo $isDark ? 'text-gray-300' : 'text-gray-500'; ?> truncate">خالص درآمد</dt>
-                                <dd class="text-lg font-medium <?php echo $isDark ? 'text-white' : 'text-gray-900'; ?>"><?php echo en2fa(formatNumber($stats['total_income'] - $stats['total_debt'])); ?> تومان</dd>
-                            </dl>
-                        </div>
+        </div>
+        
+        <!-- کل بدهکاری -->
+        <div class="card bg-gradient-to-br from-red-500 to-pink-600 text-white shadow-xl">
+            <div class="card-body">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-lg font-semibold opacity-90">کل بدهکاری</h3>
+                        <p class="text-3xl font-bold"><?php echo en2fa(number_format($stats['total_debt'])); ?></p>
+                        <p class="text-sm opacity-75">تومان</p>
+                    </div>
+                    <div class="w-16 h-16 bg-white bg-opacity-20 rounded-2xl flex items-center justify-center">
+                        <i class="fas fa-arrow-down text-2xl"></i>
                     </div>
                 </div>
+                <div class="mt-4 flex items-center gap-2">
+                    <div class="badge badge-error badge-sm">
+                        <?php echo en2fa(number_format($stats['total_debt'])); ?>
+                    </div>
+                    <span class="text-sm opacity-75">جاری</span>
+                </div>
             </div>
-
-            <div class="<?php echo $isDark ? 'dark-card' : 'bg-white'; ?> overflow-hidden shadow rounded-lg">
-                <div class="p-5">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0">
-                            <i class="fas fa-calendar-alt text-2xl text-blue-500"></i>
-                        </div>
-                        <div class="mr-5 w-0 flex-1">
-                            <dl>
-                                <dt class="text-sm font-medium <?php echo $isDark ? 'text-gray-300' : 'text-gray-500'; ?> truncate">درآمد دوره انتخابی</dt>
-                                <dd class="text-lg font-medium <?php echo $isDark ? 'text-white' : 'text-gray-900'; ?>"><?php echo en2fa(formatNumber($periodStats['net_income'])); ?> تومان</dd>
-                            </dl>
-                        </div>
+        </div>
+        
+        <!-- خالص درآمد -->
+        <div class="card bg-gradient-to-br from-blue-500 to-cyan-600 text-white shadow-xl">
+            <div class="card-body">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-lg font-semibold opacity-90">خالص درآمد</h3>
+                        <p class="text-3xl font-bold"><?php echo en2fa(number_format($stats['total_income'] - $stats['total_debt'])); ?></p>
+                        <p class="text-sm opacity-75">تومان</p>
+                    </div>
+                    <div class="w-16 h-16 bg-white bg-opacity-20 rounded-2xl flex items-center justify-center">
+                        <i class="fas fa-chart-line text-2xl"></i>
+                    </div>
+                </div>
+                <div class="mt-4 flex items-center gap-2">
+                    <?php 
+                    $netIncome = $stats['total_income'] - $stats['total_debt'];
+                    $badgeClass = $netIncome >= 0 ? 'badge-success' : 'badge-error';
+                    $icon = $netIncome >= 0 ? 'fa-trending-up' : 'fa-trending-down';
+                    ?>
+                    <div class="badge <?php echo $badgeClass; ?> badge-sm">
+                        <i class="fas <?php echo $icon; ?> mr-1"></i>
+                        <?php echo $netIncome >= 0 ? 'سود' : 'زیان'; ?>
                     </div>
                 </div>
             </div>
         </div>
-
-        <!-- Filters -->
-        <div class="<?php echo $isDark ? 'dark-card' : 'bg-white'; ?> shadow overflow-hidden sm:rounded-lg mb-6">
-            <div class="px-4 py-5 sm:px-6">
-                <h3 class="text-lg leading-6 font-medium <?php echo $isDark ? 'text-white' : 'text-gray-900'; ?>">
-                    <i class="fas fa-filter ml-2"></i>
-                    فیلتر تراکنش‌ها
-                </h3>
-                <p class="mt-1 max-w-2xl text-sm <?php echo $isDark ? 'text-gray-300' : 'text-gray-500'; ?>">
-                    فیلتر تراکنش‌ها بر اساس تاریخ و مشتری
-                </p>
+        
+        <!-- تراکنش‌های دوره -->
+        <div class="card bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-xl">
+            <div class="card-body">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-lg font-semibold opacity-90">تراکنش‌های دوره</h3>
+                        <p class="text-3xl font-bold"><?php echo en2fa(count($transactions)); ?></p>
+                        <p class="text-sm opacity-75">تراکنش</p>
+                    </div>
+                    <div class="w-16 h-16 bg-white bg-opacity-20 rounded-2xl flex items-center justify-center">
+                        <i class="fas fa-exchange-alt text-2xl"></i>
+                    </div>
+                </div>
+                <div class="mt-4 flex items-center gap-2">
+                    <div class="badge badge-info badge-sm">
+                        <?php echo en2fa(number_format($periodStats['total_income'] + $periodStats['total_debt'])); ?>
+                    </div>
+                    <span class="text-sm opacity-75">مجموع مبلغ</span>
+                </div>
             </div>
+        </div>
+    </div>
+    
+    <!-- چارت‌ها -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        <!-- چارت درآمد ماهانه -->
+        <div class="card bg-base-100 shadow-xl border border-base-300">
+            <div class="card-body">
+                <h2 class="card-title text-2xl mb-6">
+                    <i class="fas fa-chart-bar text-primary ml-2"></i>
+                    تحلیل درآمد ماهانه
+                </h2>
+                <div class="h-80">
+                    <canvas id="monthlyIncomeChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- آمار دوره‌ای -->
+        <div class="card bg-base-100 shadow-xl border border-base-300">
+            <div class="card-body">
+                <h2 class="card-title text-2xl mb-6">
+                    <i class="fas fa-calculator text-secondary ml-2"></i>
+                    آمار دوره انتخابی
+                </h2>
+                
+                <div class="grid grid-cols-1 gap-4">
+                    <div class="stat bg-primary/10 rounded-xl p-4">
+                        <div class="stat-figure text-primary">
+                            <i class="fas fa-coins text-2xl"></i>
+                        </div>
+                        <div class="stat-title">درآمد دوره</div>
+                        <div class="stat-value text-primary text-2xl">
+                            <?php echo en2fa(number_format($periodStats['total_income'])); ?>
+                        </div>
+                        <div class="stat-desc">تومان</div>
+                    </div>
+                    
+                    <div class="stat bg-error/10 rounded-xl p-4">
+                        <div class="stat-figure text-error">
+                            <i class="fas fa-credit-card text-2xl"></i>
+                        </div>
+                        <div class="stat-title">بدهکاری دوره</div>
+                        <div class="stat-value text-error text-2xl">
+                            <?php echo en2fa(number_format($periodStats['total_debt'])); ?>
+                        </div>
+                        <div class="stat-desc">تومان</div>
+                    </div>
+                    
+                    <div class="stat bg-success/10 rounded-xl p-4">
+                        <div class="stat-figure text-success">
+                            <i class="fas fa-chart-line text-2xl"></i>
+                        </div>
+                        <div class="stat-title">خالص دوره</div>
+                        <div class="stat-value text-success text-2xl">
+                            <?php echo en2fa(number_format($periodStats['net_income'])); ?>
+                        </div>
+                        <div class="stat-desc">تومان</div>
+                    </div>
+                </div>
+                
+                <!-- پروگرس نسبت سود -->
+                <div class="mt-6">
+                    <div class="flex justify-between text-sm mb-2">
+                        <span>نرخ سودآوری</span>
+                        <?php 
+                        $profitRate = $periodStats['total_income'] > 0 ? 
+                            ($periodStats['net_income'] / $periodStats['total_income']) * 100 : 0;
+                        ?>
+                        <span><?php echo en2fa(number_format($profitRate, 1)); ?>%</span>
+                    </div>
+                    <progress class="progress progress-success w-full" 
+                              value="<?php echo abs($profitRate); ?>" max="100"></progress>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- فیلترهای جستجو -->
+    <div class="card bg-base-100 shadow-xl border border-base-300">
+        <div class="card-body">
+            <h2 class="card-title mb-4">
+                <i class="fas fa-filter text-accent ml-2"></i>
+                فیلترهای جستجو
+            </h2>
             
-            <div class="px-4 py-5 sm:p-6">
-                <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <input type="hidden" name="theme" value="<?php echo $theme; ?>">
+            <form method="GET" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     
-                    <div>
-                        <label class="block text-sm font-medium <?php echo $isDark ? 'text-gray-200' : 'text-gray-700'; ?> mb-2">
-                            از تاریخ
+                    <!-- تاریخ شروع -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-medium">از تاریخ</span>
                         </label>
-                        <input type="date" name="start_date" 
-                               class="w-full <?php echo $isDark ? 'dark-input' : 'border border-gray-300'; ?> rounded-md px-3 py-2"
-                               value="<?php echo $startDate; ?>">
+                        <input type="date" name="start_date" value="<?php echo $startDate; ?>" 
+                               class="input input-bordered w-full">
                     </div>
                     
-                    <div>
-                        <label class="block text-sm font-medium <?php echo $isDark ? 'text-gray-200' : 'text-gray-700'; ?> mb-2">
-                            تا تاریخ
+                    <!-- تاریخ پایان -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-medium">تا تاریخ</span>
                         </label>
-                        <input type="date" name="end_date" 
-                               class="w-full <?php echo $isDark ? 'dark-input' : 'border border-gray-300'; ?> rounded-md px-3 py-2"
-                               value="<?php echo $endDate; ?>">
+                        <input type="date" name="end_date" value="<?php echo $endDate; ?>" 
+                               class="input input-bordered w-full">
                     </div>
                     
-                    <div>
-                        <label class="block text-sm font-medium <?php echo $isDark ? 'text-gray-200' : 'text-gray-700'; ?> mb-2">
-                            مشتری
+                    <!-- فیلتر مشتری -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-medium">مشتری</span>
                         </label>
-                        <select name="customer_id" class="w-full <?php echo $isDark ? 'dark-input' : 'border border-gray-300'; ?> rounded-md px-3 py-2">
+                        <select name="customer_id" class="select select-bordered w-full">
                             <option value="">همه مشتریان</option>
                             <?php foreach ($customers as $customer): ?>
-                            <option value="<?php echo $customer['id']; ?>" <?php echo $customerId == $customer['id'] ? 'selected' : ''; ?>>
-                                <?php echo $customer['name']; ?> - <?php echo $customer['phone']; ?>
+                            <option value="<?php echo $customer['id']; ?>" 
+                                    <?php echo $customerId == $customer['id'] ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($customer['name']); ?>
                             </option>
                             <?php endforeach; ?>
                         </select>
                     </div>
                     
-                    <div class="flex items-end">
-                        <button type="submit" class="w-full bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition duration-200">
-                            <i class="fas fa-search ml-2"></i>
-                            اعمال فیلتر
-                        </button>
+                    <!-- نوع تراکنش -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-medium">نوع تراکنش</span>
+                        </label>
+                        <select name="payment_type" class="select select-bordered w-full">
+                            <option value="">همه</option>
+                            <option value="واریز" <?php echo $paymentType == 'واریز' ? 'selected' : ''; ?>>واریز</option>
+                            <option value="بدهکاری" <?php echo $paymentType == 'بدهکاری' ? 'selected' : ''; ?>>بدهکاری</option>
+                        </select>
                     </div>
-                </form>
-
-                <!-- Quick Filters -->
-                <div class="mt-4 flex flex-wrap gap-2">
-                    <a href="?theme=<?php echo $theme; ?>&start_date=<?php echo date('Y-m-d'); ?>&end_date=<?php echo date('Y-m-d'); ?>" 
-                       class="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600">امروز</a>
-                    <a href="?theme=<?php echo $theme; ?>&start_date=<?php echo date('Y-m-d', strtotime('-7 days')); ?>&end_date=<?php echo date('Y-m-d'); ?>" 
-                       class="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600">هفته گذشته</a>
-                    <a href="?theme=<?php echo $theme; ?>&start_date=<?php echo date('Y-m-d', strtotime('-30 days')); ?>&end_date=<?php echo date('Y-m-d'); ?>" 
-                       class="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600">ماه گذشته</a>
-                    <a href="?theme=<?php echo $theme; ?>&start_date=<?php echo date('Y-m-d', strtotime('-90 days')); ?>&end_date=<?php echo date('Y-m-d'); ?>" 
-                       class="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600">سه ماه گذشته</a>
                 </div>
-            </div>
-        </div>
-
-        <!-- Financial Chart -->
-        <?php 
-        $weeklyFinancialStats = getWeeklyStats();
-        if (!empty($weeklyFinancialStats)): 
-        ?>
-        <div class="<?php echo $isDark ? 'dark-card' : 'bg-white'; ?> overflow-hidden shadow rounded-lg mb-6">
-            <div class="px-4 py-5 sm:px-6">
-                <h3 class="text-lg leading-6 font-medium <?php echo $isDark ? 'text-white' : 'text-gray-900'; ?>">نمودار درآمد هفتگی</h3>
-                <p class="mt-1 text-sm <?php echo $isDark ? 'text-gray-300' : 'text-gray-500'; ?>">آمار درآمد ۷ روز گذشته</p>
-            </div>
-            <div class="px-4 pb-5">
-                <div class="chart-container">
-                    <canvas id="financialChart"></canvas>
+                
+                <!-- دکمه‌های فیلتر -->
+                <div class="flex gap-3">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search ml-2"></i>
+                        اعمال فیلتر
+                    </button>
+                    <a href="payments.php" class="btn btn-ghost">
+                        <i class="fas fa-times ml-2"></i>
+                        پاک کردن
+                    </a>
+                    
+                    <!-- فیلترهای سریع -->
+                    <div class="divider divider-horizontal"></div>
+                    <div class="flex gap-2">
+                        <a href="?start_date=<?php echo date('Y-m-d'); ?>&end_date=<?php echo date('Y-m-d'); ?>" 
+                           class="btn btn-outline btn-sm">امروز</a>
+                        <a href="?start_date=<?php echo date('Y-m-d', strtotime('-7 days')); ?>&end_date=<?php echo date('Y-m-d'); ?>" 
+                           class="btn btn-outline btn-sm">هفته گذشته</a>
+                        <a href="?start_date=<?php echo date('Y-m-d', strtotime('-30 days')); ?>&end_date=<?php echo date('Y-m-d'); ?>" 
+                           class="btn btn-outline btn-sm">ماه گذشته</a>
+                    </div>
                 </div>
-            </div>
+            </form>
         </div>
-        <?php endif; ?>
-
-        <!-- Transactions Table -->
-        <div class="<?php echo $isDark ? 'dark-card' : 'bg-white'; ?> shadow overflow-hidden sm:rounded-lg">
-            <div class="px-4 py-5 sm:px-6">
-                <h3 class="text-lg leading-6 font-medium <?php echo $isDark ? 'text-white' : 'text-gray-900'; ?>">
-                    تراکنش‌های مالی
-                </h3>
-                <p class="mt-1 text-sm <?php echo $isDark ? 'text-gray-300' : 'text-gray-500'; ?>">
-                    <?php echo en2fa(count($transactions)); ?> تراکنش در بازه انتخابی
-                </p>
+    </div>
+    
+    <!-- جدول تراکنش‌ها -->
+    <div class="card bg-base-100 shadow-xl border border-base-300">
+        <div class="card-body p-0">
+            
+            <!-- هدر جدول -->
+            <div class="p-6 border-b border-base-300">
+                <div class="flex items-center justify-between">
+                    <h2 class="card-title">
+                        <i class="fas fa-list text-warning ml-2"></i>
+                        لیست تراکنش‌ها
+                    </h2>
+                    <div class="text-sm text-base-content/70">
+                        مجموع: <?php echo en2fa(count($transactions)); ?> تراکنش
+                    </div>
+                </div>
             </div>
             
+            <?php if (empty($transactions)): ?>
+            <!-- پیام خالی -->
+            <div class="text-center py-16">
+                <div class="w-24 h-24 bg-base-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-receipt text-4xl text-base-content/30"></i>
+                </div>
+                <h3 class="text-xl font-bold text-base-content mb-2">تراکنشی یافت نشد</h3>
+                <p class="text-base-content/70 mb-6">
+                    در بازه زمانی انتخاب شده، تراکنشی ثبت نشده است.
+                </p>
+                <a href="add_payment.php" class="btn btn-primary">
+                    <i class="fas fa-plus ml-2"></i>
+                    ثبت تراکنش جدید
+                </a>
+            </div>
+            
+            <?php else: ?>
+            
+            <!-- جدول -->
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y <?php echo $isDark ? 'divide-gray-600' : 'divide-gray-200'; ?>">
-                    <thead class="<?php echo $isDark ? 'bg-gray-700' : 'bg-gray-50'; ?>">
-                        <tr>
-                            <th class="px-6 py-3 text-right text-xs font-medium <?php echo $isDark ? 'text-gray-300' : 'text-gray-500'; ?> uppercase tracking-wider">
-                                تاریخ
-                            </th>
-                            <th class="px-6 py-3 text-right text-xs font-medium <?php echo $isDark ? 'text-gray-300' : 'text-gray-500'; ?> uppercase tracking-wider">
-                                مشتری
-                            </th>
-                            <th class="px-6 py-3 text-right text-xs font-medium <?php echo $isDark ? 'text-gray-300' : 'text-gray-500'; ?> uppercase tracking-wider">
-                                درخواست
-                            </th>
-                            <th class="px-6 py-3 text-right text-xs font-medium <?php echo $isDark ? 'text-gray-300' : 'text-gray-500'; ?> uppercase tracking-wider">
-                                نوع
-                            </th>
-                            <th class="px-6 py-3 text-right text-xs font-medium <?php echo $isDark ? 'text-gray-300' : 'text-gray-500'; ?> uppercase tracking-wider">
-                                مبلغ
-                            </th>
-                            <th class="px-6 py-3 text-right text-xs font-medium <?php echo $isDark ? 'text-gray-300' : 'text-gray-500'; ?> uppercase tracking-wider">
-                                توضیحات
-                            </th>
-                            <th class="px-6 py-3 text-right text-xs font-medium <?php echo $isDark ? 'text-gray-300' : 'text-gray-500'; ?> uppercase tracking-wider">
-                                تراز مشتری
-                            </th>
+                <table class="table table-zebra">
+                    <thead>
+                        <tr class="bg-base-200">
+                            <th>تاریخ</th>
+                            <th>مشتری</th>
+                            <th>درخواست</th>
+                            <th>نوع</th>
+                            <th>مبلغ</th>
+                            <th>توضیحات</th>
+                            <th class="text-center">عملیات</th>
                         </tr>
                     </thead>
-                    <tbody class="<?php echo $isDark ? 'bg-gray-800 divide-gray-600' : 'bg-white divide-gray-200'; ?> divide-y">
-                        <?php 
-                        $totalIncome = 0;
-                        $totalDebt = 0;
-                        foreach ($transactions as $transaction): 
-                            if ($transaction['payment_type'] == 'واریز') {
-                                $totalIncome += $transaction['amount'];
-                            } else {
-                                $totalDebt += $transaction['amount'];
-                            }
-                            $customerBalance = getCustomerBalance($transaction['customer_id']);
-                        ?>
-                        <tr class="hover:<?php echo $isDark ? 'bg-gray-700' : 'bg-gray-50'; ?> transition duration-150">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm <?php echo $isDark ? 'text-gray-200' : 'text-gray-500'; ?>">
-                                <?php echo en2fa(jalali_date('Y/m/d H:i', strtotime($transaction['created_at']))); ?>
+                    <tbody>
+                        <?php foreach ($transactions as $transaction): ?>
+                        <tr class="hover">
+                            <td>
+                                <div class="text-sm">
+                                    <div class="font-medium">
+                                        <?php echo en2fa(jalali_date('Y/m/d', strtotime($transaction['created_at']))); ?>
+                                    </div>
+                                    <div class="text-base-content/60">
+                                        <?php echo en2fa(date('H:i', strtotime($transaction['created_at']))); ?>
+                                    </div>
+                                </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm <?php echo $isDark ? 'text-gray-200' : 'text-gray-900'; ?>">
-                                <div class="font-medium"><?php echo htmlspecialchars($transaction['customer_name']); ?></div>
-                                <div class="text-gray-500 font-mono text-xs"><?php echo $transaction['customer_phone']; ?></div>
+                            
+                            <td>
+                                <div class="flex items-center gap-3">
+                                    <div class="avatar placeholder">
+                                        <div class="bg-primary text-primary-content rounded-full w-8">
+                                            <span class="text-xs">
+                                                <?php echo mb_substr($transaction['customer_name'] ?? 'ن', 0, 1); ?>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="font-medium text-base-content">
+                                            <?php echo htmlspecialchars($transaction['customer_name'] ?? 'نامشخص'); ?>
+                                        </div>
+                                        <div class="text-sm text-base-content/60">
+                                            <?php echo $transaction['customer_phone'] ?? '-'; ?>
+                                        </div>
+                                    </div>
+                                </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm <?php echo $isDark ? 'text-gray-200' : 'text-gray-900'; ?>">
-                                <?php if ($transaction['request_title']): ?>
-                                    <div class="font-medium"><?php echo htmlspecialchars($transaction['request_title']); ?></div>
-                                    <div class="text-gray-500 text-xs">کد: <?php echo en2fa($transaction['tracking_code']); ?></div>
+                            
+                            <td>
+                                <?php if ($transaction['tracking_code']): ?>
+                                <div class="flex items-center gap-2">
+                                    <code class="bg-info/10 text-info px-2 py-1 rounded text-sm">
+                                        <?php echo en2fa($transaction['tracking_code']); ?>
+                                    </code>
+                                    <div class="text-sm text-base-content/60">
+                                        <?php echo htmlspecialchars($transaction['request_title'] ?? ''); ?>
+                                    </div>
+                                </div>
                                 <?php else: ?>
-                                    <span class="text-gray-400">بدون درخواست</span>
+                                <span class="text-base-content/40">بدون درخواست</span>
                                 <?php endif; ?>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
-                                    <?php echo $transaction['payment_type'] == 'واریز' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'; ?>">
-                                    <i class="<?php echo $transaction['payment_type'] == 'واریز' ? 'fas fa-arrow-down' : 'fas fa-arrow-up'; ?> ml-1"></i>
+                            
+                            <td>
+                                <div class="badge <?php echo $transaction['payment_type'] == 'واریز' ? 'badge-success' : 'badge-error'; ?>">
+                                    <i class="fas <?php echo $transaction['payment_type'] == 'واریز' ? 'fa-arrow-up' : 'fa-arrow-down'; ?> ml-1"></i>
                                     <?php echo $transaction['payment_type']; ?>
-                                </span>
+                                </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium <?php echo $isDark ? 'text-gray-200' : 'text-gray-900'; ?>">
-                                <span class="<?php echo $transaction['payment_type'] == 'واریز' ? 'text-green-600' : 'text-red-600'; ?>">
-                                    <?php echo $transaction['payment_type'] == 'واریز' ? '+' : '-'; ?>
-                                    <?php echo en2fa(formatNumber($transaction['amount'])); ?> تومان
-                                </span>
+                            
+                            <td>
+                                <div class="text-lg font-bold <?php echo $transaction['payment_type'] == 'واریز' ? 'text-success' : 'text-error'; ?>">
+                                    <?php echo en2fa(number_format($transaction['amount'])); ?>
+                                    <span class="text-sm font-normal text-base-content/60">تومان</span>
+                                </div>
                             </td>
-                            <td class="px-6 py-4 text-sm <?php echo $isDark ? 'text-gray-200' : 'text-gray-900'; ?>">
-                                <?php echo htmlspecialchars($transaction['description'] ?: 'بدون توضیحات'); ?>
+                            
+                            <td>
+                                <div class="max-w-xs">
+                                    <?php echo htmlspecialchars($transaction['description'] ?? '-'); ?>
+                                </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <span class="<?php echo $customerBalance >= 0 ? 'text-green-600' : 'text-red-600'; ?>">
-                                    <?php if ($customerBalance >= 0): ?>
-                                        <i class="fas fa-arrow-up ml-1"></i>بستانکار
-                                    <?php else: ?>
-                                        <i class="fas fa-arrow-down ml-1"></i>بدهکار
-                                    <?php endif; ?>
-                                    <div class="text-xs"><?php echo en2fa(formatNumber(abs($customerBalance))); ?> تومان</div>
-                                </span>
+                            
+                            <td>
+                                <div class="flex justify-center gap-1">
+                                    <div class="dropdown dropdown-end">
+                                        <div tabindex="0" role="button" class="btn btn-ghost btn-sm">
+                                            <i class="fas fa-ellipsis-v"></i>
+                                        </div>
+                                        <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-48">
+                                            <li>
+                                                <a href="edit_payment.php?id=<?php echo $transaction['id']; ?>" class="text-sm">
+                                                    <i class="fas fa-edit"></i>
+                                                    ویرایش
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a href="print_payment.php?id=<?php echo $transaction['id']; ?>" class="text-sm">
+                                                    <i class="fas fa-print"></i>
+                                                    چاپ رسید
+                                                </a>
+                                            </li>
+                                            <li class="divider"></li>
+                                            <li>
+                                                <a onclick="deletePayment(<?php echo $transaction['id']; ?>)" class="text-sm text-error">
+                                                    <i class="fas fa-trash"></i>
+                                                    حذف
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
                             </td>
                         </tr>
                         <?php endforeach; ?>
                     </tbody>
                 </table>
-                
-                <?php if (empty($transactions)): ?>
-                <div class="text-center py-8">
-                    <i class="fas fa-receipt text-4xl <?php echo $isDark ? 'text-gray-400' : 'text-gray-300'; ?> mb-4"></i>
-                    <p class="<?php echo $isDark ? 'text-gray-400' : 'text-gray-500'; ?>">در این بازه زمانی تراکنشی یافت نشد</p>
-                </div>
-                <?php else: ?>
-                <!-- Summary Footer -->
-                <div class="<?php echo $isDark ? 'bg-gray-700' : 'bg-gray-50'; ?> px-6 py-4">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                        <div class="flex justify-between">
-                            <span class="font-medium <?php echo $isDark ? 'text-gray-200' : 'text-gray-700'; ?>">مجموع واریزی:</span>
-                            <span class="font-bold text-green-600"><?php echo en2fa(formatNumber($totalIncome)); ?> تومان</span>
+            </div>
+            
+            <!-- خلاصه مالی -->
+            <div class="p-6 border-t border-base-300 bg-base-200">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                    <div class="stat">
+                        <div class="stat-title">مجموع واریزها</div>
+                        <div class="stat-value text-success">
+                            <?php 
+                            $totalIncome = array_sum(array_map(function($t) {
+                                return $t['payment_type'] == 'واریز' ? $t['amount'] : 0;
+                            }, $transactions));
+                            echo en2fa(number_format($totalIncome));
+                            ?>
                         </div>
-                        <div class="flex justify-between">
-                            <span class="font-medium <?php echo $isDark ? 'text-gray-200' : 'text-gray-700'; ?>">مجموع بدهکاری:</span>
-                            <span class="font-bold text-red-600"><?php echo en2fa(formatNumber($totalDebt)); ?> تومان</span>
+                        <div class="stat-desc">تومان</div>
+                    </div>
+                    
+                    <div class="stat">
+                        <div class="stat-title">مجموع بدهکاری‌ها</div>
+                        <div class="stat-value text-error">
+                            <?php 
+                            $totalDebt = array_sum(array_map(function($t) {
+                                return $t['payment_type'] == 'بدهکاری' ? $t['amount'] : 0;
+                            }, $transactions));
+                            echo en2fa(number_format($totalDebt));
+                            ?>
                         </div>
-                        <div class="flex justify-between">
-                            <span class="font-medium <?php echo $isDark ? 'text-gray-200' : 'text-gray-700'; ?>">خالص:</span>
-                            <span class="font-bold <?php echo ($totalIncome - $totalDebt) >= 0 ? 'text-green-600' : 'text-red-600'; ?>">
-                                <?php echo en2fa(formatNumber($totalIncome - $totalDebt)); ?> تومان
-                            </span>
+                        <div class="stat-desc">تومان</div>
+                    </div>
+                    
+                    <div class="stat">
+                        <div class="stat-title">خالص</div>
+                        <div class="stat-value <?php echo ($totalIncome - $totalDebt) >= 0 ? 'text-success' : 'text-error'; ?>">
+                            <?php echo en2fa(number_format($totalIncome - $totalDebt)); ?>
                         </div>
+                        <div class="stat-desc">تومان</div>
                     </div>
                 </div>
-                <?php endif; ?>
             </div>
+            
+            <?php endif; ?>
         </div>
     </div>
+    
+</div>
 
-    <?php if (!empty($weeklyFinancialStats)): ?>
-    <script>
-        // Financial Chart
-        const financialCtx = document.getElementById('financialChart').getContext('2d');
-        const financialChart = new Chart(financialCtx, {
+<!-- مودال تایید حذف -->
+<dialog id="deleteModal" class="modal">
+    <div class="modal-box">
+        <h3 class="font-bold text-lg text-error">
+            <i class="fas fa-exclamation-triangle ml-2"></i>
+            تایید حذف تراکنش
+        </h3>
+        <p class="py-4">آیا از حذف این تراکنش اطمینان دارید؟ این عمل قابل بازگشت نیست.</p>
+        <div class="modal-action">
+            <form method="dialog">
+                <button class="btn">انصراف</button>
+            </form>
+            <button id="confirmDelete" class="btn btn-error">
+                <i class="fas fa-trash ml-1"></i>
+                حذف
+            </button>
+        </div>
+    </div>
+</dialog>
+
+<script>
+    let deletePaymentId = null;
+    
+    // چارت درآمد ماهانه
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('monthlyIncomeChart').getContext('2d');
+        
+        const monthNames = [
+            'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
+            'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'
+        ];
+        
+        const monthlyData = <?php echo json_encode($monthlyData); ?>;
+        
+        new Chart(ctx, {
             type: 'line',
             data: {
-                labels: <?php echo json_encode(array_column($weeklyFinancialStats, 'date')); ?>,
+                labels: monthlyData.map(item => {
+                    const date = new Date(item.month + '-01');
+                    return monthNames[date.getMonth()];
+                }),
                 datasets: [{
-                    label: 'درآمد روزانه',
-                    data: <?php echo json_encode(array_column($weeklyFinancialStats, 'income')); ?>,
-                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                    label: 'درآمد',
+                    data: monthlyData.map(item => item.income),
                     borderColor: 'rgb(34, 197, 94)',
-                    borderWidth: 2,
+                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4
+                }, {
+                    label: 'بدهکاری',
+                    data: monthlyData.map(item => item.expenses),
+                    borderColor: 'rgb(239, 68, 68)',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    borderWidth: 3,
                     fill: true,
                     tension: 0.4
                 }]
@@ -454,53 +610,55 @@ $isDark = $theme === 'dark';
                 maintainAspectRatio: false,
                 plugins: {
                     legend: {
-                        labels: {
-                            color: '<?php echo $isDark ? "#e5e7eb" : "#374151"; ?>'
-                        }
+                        position: 'top'
                     }
                 },
                 scales: {
-                    x: {
-                        ticks: {
-                            color: '<?php echo $isDark ? "#9ca3af" : "#6b7280"; ?>'
-                        },
-                        grid: {
-                            color: '<?php echo $isDark ? "#374151" : "#f3f4f6"; ?>'
-                        }
-                    },
                     y: {
+                        beginAtZero: true,
                         ticks: {
-                            color: '<?php echo $isDark ? "#9ca3af" : "#6b7280"; ?>'
-                        },
-                        grid: {
-                            color: '<?php echo $isDark ? "#374151" : "#f3f4f6"; ?>'
+                            callback: function(value) {
+                                return new Intl.NumberFormat('fa-IR').format(value) + ' تومان';
+                            }
                         }
                     }
                 }
             }
         });
-    </script>
-    <?php endif; ?>
+    });
     
-    <script>
-        // Mobile Menu Toggle
-        document.addEventListener('DOMContentLoaded', function() {
-            const mobileMenuButton = document.getElementById('mobile-menu-button');
-            const mobileMenu = document.getElementById('mobile-menu');
-            
-            if (mobileMenuButton && mobileMenu) {
-                mobileMenuButton.addEventListener('click', function() {
-                    mobileMenu.classList.toggle('hidden');
-                });
-            }
-            
-            // Auto-hide mobile menu on larger screens
-            window.addEventListener('resize', function() {
-                if (window.innerWidth >= 768) {
-                    mobileMenu.classList.add('hidden');
+    function deletePayment(id) {
+        deletePaymentId = id;
+        document.getElementById('deleteModal').showModal();
+    }
+    
+    document.getElementById('confirmDelete').addEventListener('click', function() {
+        if (deletePaymentId) {
+            fetch('delete_payment.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ id: deletePaymentId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('تراکنش با موفقیت حذف شد', 'success');
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showToast('خطا در حذف تراکنش', 'error');
                 }
             });
-        });
-    </script>
-</body>
-</html>
+            
+            document.getElementById('deleteModal').close();
+        }
+    });
+    
+    function exportToExcel() {
+        const params = new URLSearchParams(window.location.search);
+        window.open('export_payments.php?' + params.toString(), '_blank');
+    }
+</script>
+
+<?php include 'includes/footer.php'; ?>

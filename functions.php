@@ -512,4 +512,153 @@ function getTransactionsWithFilter($startDate = null, $endDate = null, $customer
     $stmt->execute($params);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
+
+// تابع دریافت آمار هفتگی درخواست‌ها
+function getWeeklyStats() {
+    global $pdo;
+    
+    $stmt = $pdo->query("
+        SELECT DATE(created_at) as date, COUNT(*) as count 
+        FROM requests 
+        WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) 
+        GROUP BY DATE(created_at) 
+        ORDER BY date ASC
+    ");
+    
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+// تابع دریافت آمار وضعیت درخواست‌ها
+function getStatusStats() {
+    global $pdo;
+    
+    $stmt = $pdo->query("
+        SELECT status, COUNT(*) as count 
+        FROM requests 
+        GROUP BY status
+    ");
+    
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+// تابع دریافت آمار ماهانه
+function getMonthlyStats() {
+    global $pdo;
+    
+    $stmt = $pdo->query("
+        SELECT MONTH(created_at) as month, 
+               YEAR(created_at) as year,
+               COUNT(*) as request_count,
+               COALESCE(SUM(cost), 0) as total_cost
+        FROM requests 
+        WHERE created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+        GROUP BY YEAR(created_at), MONTH(created_at)
+        ORDER BY year ASC, month ASC
+    ");
+    
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+// تابع دریافت تمام درخواست‌ها
+function getAllRequests() {
+    global $pdo;
+    
+    $stmt = $pdo->query("
+        SELECT r.*, c.name as customer_name, c.phone as customer_phone
+        FROM requests r
+        JOIN customers c ON r.customer_id = c.id
+        ORDER BY r.created_at DESC
+    ");
+    
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+// تابع دریافت یک درخواست
+function getRequest($id) {
+    global $pdo;
+    
+    $stmt = $pdo->prepare("
+        SELECT r.*, c.name as customer_name, c.phone as customer_phone, c.email as customer_email
+        FROM requests r
+        JOIN customers c ON r.customer_id = c.id
+        WHERE r.id = ?
+    ");
+    $stmt->execute([$id]);
+    
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+// تابع ایجاد درخواست
+function createRequest($customerId, $title, $deviceModel, $imei1, $imei2, $problemDescription, $estimatedDuration, $actionsRequired, $cost) {
+    global $pdo;
+    
+    $trackingCode = generateTrackingCode();
+    
+    // اطمینان از یکتا بودن کد رهگیری
+    while (true) {
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM requests WHERE tracking_code = ?");
+        $stmt->execute([$trackingCode]);
+        if ($stmt->fetchColumn() == 0) {
+            break;
+        }
+        $trackingCode = generateTrackingCode();
+    }
+    
+    $stmt = $pdo->prepare("
+        INSERT INTO requests 
+        (customer_id, title, device_model, imei1, imei2, problem_description, estimated_duration, actions_required, cost, tracking_code) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ");
+    
+    $stmt->execute([
+        $customerId, $title, $deviceModel, $imei1, $imei2, 
+        $problemDescription, $estimatedDuration, $actionsRequired, $cost, $trackingCode
+    ]);
+    
+    return $pdo->lastInsertId();
+}
+
+// تابع دریافت مشتری با شماره تلفن
+function getCustomerByPhone($phone) {
+    global $pdo;
+    
+    $stmt = $pdo->prepare("SELECT * FROM customers WHERE phone = ?");
+    $stmt->execute([$phone]);
+    
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+// تابع دریافت آمار کوتاه مدت (30 روز گذشته)
+function getShortTermStats() {
+    global $pdo;
+    
+    $stats = [];
+    
+    // درخواست‌های 30 روز گذشته
+    $stmt = $pdo->query("
+        SELECT COUNT(*) 
+        FROM requests 
+        WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+    ");
+    $stats['requests_last_30_days'] = $stmt->fetchColumn();
+    
+    // درآمد 30 روز گذشته
+    $stmt = $pdo->query("
+        SELECT COALESCE(SUM(amount), 0) 
+        FROM payments 
+        WHERE payment_type = 'واریز' 
+        AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+    ");
+    $stats['income_last_30_days'] = $stmt->fetchColumn();
+    
+    // مشتریان جدید 30 روز گذشته
+    $stmt = $pdo->query("
+        SELECT COUNT(*) 
+        FROM customers 
+        WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+    ");
+    $stats['new_customers_last_30_days'] = $stmt->fetchColumn();
+    
+    return $stats;
+}
 ?>
