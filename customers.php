@@ -6,89 +6,170 @@ require_once 'functions.php';
 checkLogin();
 
 $customers = getAllCustomers();
+
+$pageTitle = 'مدیریت مشتریان - پاسخگو رایانه';
+$breadcrumbs = [
+    ['title' => 'داشبورد', 'url' => 'dashboard.php'],
+    ['title' => 'مدیریت مشتریان']
+];
+
+include 'includes/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="fa" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مدیریت مشتریان - مدیریت درخواست پاسخگو رایانه</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/font-face.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        body { font-family: 'Vazir', sans-serif; }
-    </style>
-</head>
-<body class="bg-gray-100">
-    <!-- Navigation -->
-    <nav class="bg-white shadow-lg">
-        <div class="max-w-7xl mx-auto px-4">
-            <div class="flex justify-between h-16">
-                <div class="flex items-center">
-                    <a href="dashboard.php" class="text-xl font-bold text-gray-800">مدیریت درخواست پاسخگو رایانه</a>
-                </div>
-                <div class="flex items-center space-x-4 space-x-reverse">
-                    <a href="dashboard.php" class="text-gray-700 hover:text-gray-900">داشبورد</a>
-                    <a href="logout.php" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">خروج</a>
-                </div>
+<!-- صفحه مدیریت مشتریان -->
+<div class="space-y-8">
+    
+    <!-- هدر صفحه -->
+    <div class="hero bg-gradient-to-r from-info to-secondary rounded-3xl text-primary-content">
+        <div class="hero-content text-center py-8">
+            <div class="max-w-lg">
+                <h1 class="text-3xl font-bold mb-4">
+                    <i class="fas fa-users ml-2"></i>
+                    مدیریت مشتریان
+                </h1>
+                <p class="text-lg">
+                    مشاهده و مدیریت اطلاعات مشتریان
+                </p>
             </div>
         </div>
-    </nav>
-
-    <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div class="bg-white shadow overflow-hidden sm:rounded-lg">
-            <div class="px-4 py-5 sm:px-6">
-                <h3 class="text-lg leading-6 font-medium text-gray-900">مدیریت مشتریان</h3>
-                <p class="mt-1 max-w-2xl text-sm text-gray-500">لیست تمام مشتریان</p>
+    </div>
+    
+    <!-- آمار سریع مشتریان -->
+    <div class="stats shadow w-full">
+        <div class="stat">
+            <div class="stat-figure text-primary">
+                <i class="fas fa-users text-3xl"></i>
+            </div>
+            <div class="stat-title">کل مشتریان</div>
+            <div class="stat-value text-primary"><?php echo en2fa(count($customers)); ?></div>
+            <div class="stat-desc">مشتریان ثبت‌شده در سیستم</div>
+        </div>
+        
+        <div class="stat">
+            <div class="stat-figure text-secondary">
+                <i class="fas fa-user-plus text-3xl"></i>
+            </div>
+            <div class="stat-title">مشتریان جدید امروز</div>
+            <div class="stat-value text-secondary">
+                <?php 
+                $todayCustomers = array_filter($customers, function($customer) {
+                    return date('Y-m-d', strtotime($customer['created_at'])) === date('Y-m-d');
+                });
+                echo en2fa(count($todayCustomers));
+                ?>
+            </div>
+            <div class="stat-desc">ثبت‌شده امروز</div>
+        </div>
+        
+        <div class="stat">
+            <div class="stat-figure text-accent">
+                <i class="fas fa-chart-line text-3xl"></i>
+            </div>
+            <div class="stat-title">میانگین موجودی</div>
+            <div class="stat-value text-accent">
+                <?php 
+                $totalBalance = 0;
+                foreach ($customers as $customer) {
+                    $totalBalance += getCustomerBalance($customer['id']);
+                }
+                $avgBalance = count($customers) > 0 ? $totalBalance / count($customers) : 0;
+                echo en2fa(number_format($avgBalance));
+                ?>
+            </div>
+            <div class="stat-desc">تومان</div>
+        </div>
+    </div>
+    
+    <!-- جدول مشتریان -->
+    <div class="card bg-base-100 shadow-xl border border-base-300">
+        <div class="card-body">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="card-title text-2xl">
+                    <i class="fas fa-list text-info ml-2"></i>
+                    لیست مشتریان
+                </h2>
+                <div class="flex gap-2">
+                    <a href="new_customer.php" class="btn btn-primary">
+                        <i class="fas fa-plus ml-2"></i>
+                        مشتری جدید
+                    </a>
+                    <button class="btn btn-ghost" onclick="window.print()">
+                        <i class="fas fa-print ml-2"></i>
+                        چاپ لیست
+                    </button>
+                </div>
             </div>
             
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
+                <table class="table table-zebra">
+                    <thead>
                         <tr>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">شناسه</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">نام</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">تلفن</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">ایمیل</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">تاریخ ثبت</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">موجودی</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">عملیات</th>
+                            <th>شناسه</th>
+                            <th>نام و نام خانوادگی</th>
+                            <th>تلفن همراه</th>
+                            <th>ایمیل</th>
+                            <th>تاریخ ثبت</th>
+                            <th>موجودی</th>
+                            <th>عملیات</th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
+                    <tbody>
                         <?php foreach ($customers as $customer): ?>
                         <?php $balance = getCustomerBalance($customer['id']); ?>
-                        <tr>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                <?php echo en2fa($customer['id']); ?>
+                        <tr class="hover">
+                            <td>
+                                <div class="badge badge-neutral">
+                                    <?php echo en2fa($customer['id']); ?>
+                                </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                <?php echo $customer['name']; ?>
+                            <td class="font-medium">
+                                <div class="flex items-center">
+                                    <div class="avatar placeholder ml-3">
+                                        <div class="bg-neutral-focus text-neutral-content rounded-full w-8">
+                                            <span class="text-xs">
+                                                <?php echo mb_substr($customer['name'], 0, 1); ?>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <?php echo htmlspecialchars($customer['name']); ?>
+                                </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                <?php echo $customer['phone']; ?>
+                            <td>
+                                <div class="flex items-center">
+                                    <i class="fas fa-phone text-base-content/50 ml-2"></i>
+                                    <span dir="ltr"><?php echo $customer['phone']; ?></span>
+                                </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                <?php echo $customer['email'] ?: 'ندارد'; ?>
+                            <td>
+                                <div class="flex items-center">
+                                    <i class="fas fa-envelope text-base-content/50 ml-2"></i>
+                                    <?php echo $customer['email'] ?: 'ندارد'; ?>
+                                </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                <?php echo en2fa(jalali_date('Y/m/d', strtotime($customer['created_at']))); ?>
+                            <td>
+                                <div class="flex items-center">
+                                    <i class="fas fa-calendar text-base-content/50 ml-2"></i>
+                                    <?php echo en2fa(jalali_date('Y/m/d', strtotime($customer['created_at']))); ?>
+                                </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <span class="<?php echo $balance >= 0 ? 'text-green-600' : 'text-red-600'; ?>">
-                                    <?php echo en2fa(formatNumber($balance)); ?> تومان
-                                </span>
+                            <td>
+                                <div class="badge <?php echo $balance >= 0 ? 'badge-success' : 'badge-error'; ?>">
+                                    <i class="fas fa-wallet ml-1"></i>
+                                    <?php echo en2fa(formatNumber($balance)); ?> ت
+                                </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <div class="flex space-x-2 space-x-reverse">
+                            <td>
+                                <div class="flex gap-2">
                                     <a href="view_customer.php?id=<?php echo $customer['id']; ?>" 
-                                       class="text-blue-600 hover:text-blue-900">
-                                        <i class="fas fa-eye"></i>
+                                       class="btn btn-ghost btn-sm" title="مشاهده">
+                                        <i class="fas fa-eye text-info"></i>
+                                    </a>
+                                    <a href="new_request.php?customer_id=<?php echo $customer['id']; ?>" 
+                                       class="btn btn-ghost btn-sm" title="درخواست جدید">
+                                        <i class="fas fa-plus text-primary"></i>
                                     </a>
                                     <a href="print_customer.php?id=<?php echo $customer['id']; ?>" 
-                                       class="text-purple-600 hover:text-purple-900">
-                                        <i class="fas fa-print"></i>
+                                       class="btn btn-ghost btn-sm" title="چاپ">
+                                        <i class="fas fa-print text-secondary"></i>
                                     </a>
                                 </div>
                             </td>
@@ -97,7 +178,21 @@ $customers = getAllCustomers();
                     </tbody>
                 </table>
             </div>
+            
+            <?php if (empty($customers)): ?>
+            <div class="text-center py-12">
+                <i class="fas fa-users text-6xl text-base-content/20 mb-4"></i>
+                <h3 class="text-xl font-semibold text-base-content/60 mb-2">هیچ مشتری‌ای یافت نشد</h3>
+                <p class="text-base-content/40 mb-6">برای شروع، اولین مشتری خود را اضافه کنید</p>
+                <a href="new_customer.php" class="btn btn-primary">
+                    <i class="fas fa-plus ml-2"></i>
+                    اضافه کردن مشتری جدید
+                </a>
+            </div>
+            <?php endif; ?>
         </div>
     </div>
-</body>
-</html>
+    
+</div>
+
+<?php include 'includes/footer.php'; ?>
