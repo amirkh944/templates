@@ -12,42 +12,21 @@ $message = '';
 if ($query) {
     $results = searchRequests($query);
     if (empty($results)) {
-        $message = '<div class="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
-                      هیچ درخواستی با این کلمه کلیدی یافت نشد.
+        $message = '<div class="alert alert-warning mb-6">
+                      <i class="fas fa-search"></i>
+                      <span>هیچ درخواستی با این کلمه کلیدی یافت نشد.</span>
                     </div>';
     }
 }
 
-// کنترل تم (قالب)
-$theme = $_GET['theme'] ?? 'light';
-$isDark = $theme === 'dark';
+$pageTitle = 'جستجوی درخواست‌ها - پاسخگو رایانه';
+$breadcrumbs = [
+    ['title' => 'داشبورد', 'url' => 'dashboard.php'],
+    ['title' => 'جستجوی درخواست‌ها']
+];
+
+include 'includes/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="fa" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>جستجوی درخواست‌ها - مدیریت درخواست پاسخگو رایانه</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/font-face.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        body { font-family: 'Vazir', sans-serif; }
-        <?php if ($isDark): ?>
-        .dark-theme {
-            background: linear-gradient(135deg, #1e3a8a 0%, #3730a3 100%);
-            color: #e5e7eb;
-        }
-        .dark-card {
-            background: rgba(31, 41, 55, 0.9);
-            border: 1px solid #374151;
-        }
-        .dark-input {
-            background: #374151;
-            border: 1px solid #4b5563;
-            color: #e5e7eb;
-        }
-        .dark-input:focus {
             border-color: #6366f1;
             box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
         }
