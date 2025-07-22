@@ -26,14 +26,11 @@ $breadcrumbs = [
 ];
 
 include 'includes/header.php';
+
+// Get theme parameter
+$theme = $_GET['theme'] ?? 'light';
+$isDark = $theme === 'dark';
 ?>
-            border-color: #6366f1;
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-        }
-        <?php endif; ?>
-    </style>
-</head>
-<body class="<?php echo $isDark ? 'dark-theme min-h-screen' : 'bg-gray-100'; ?>">
     <!-- Navigation -->
     <nav class="<?php echo $isDark ? 'bg-gray-800 shadow-lg' : 'bg-white shadow-lg'; ?>">
         <div class="max-w-7xl mx-auto px-4">
@@ -274,5 +271,5 @@ include 'includes/header.php';
         </div>
         <?php endif; ?>
     </div>
-</body>
-</html>
+
+<?php include 'includes/footer.php'; ?>
